@@ -1,0 +1,110 @@
+type: vertical-stack
+cards:
+  # Collection Day Alert Banner
+  - type: conditional
+    conditions:
+      - condition: or
+        conditions:
+          - entity: sensor.next_refuse_collection
+            attribute: is_collection_day
+            state: true
+          - entity: sensor.next_recycling_collection
+            attribute: is_collection_day
+            state: true
+          - entity: sensor.next_garden_collection
+            attribute: is_collection_day
+            state: true
+    card:
+      type: markdown
+      content: |
+        ## 🚛 Collection Day Active
+        
+        **Live tracking enabled** - Status updates every 15 minutes
+        
+        **Collections today:**
+        {% if states('sensor.next_refuse_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.next_refuse_collection', 'is_collection_day') -%}
+        - 🗑️ **Refuse:** {{ states('sensor.refuse_collection_status') }}
+        {%- if state_attr('sensor.refuse_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.refuse_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
+        {% endif -%}
+        {% if states('sensor.next_recycling_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.next_recycling_collection', 'is_collection_day') -%}
+        - ♻️ **Recycling:** {{ states('sensor.recycling_collection_status') }}
+        {%- if state_attr('sensor.recycling_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.recycling_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
+        {% endif -%}
+        {% if states('sensor.next_food_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.next_food_collection', 'is_collection_day') -%}
+        - 🍎 **Food:** {{ states('sensor.food_collection_status') }}
+        {%- if state_attr('sensor.food_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.food_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
+        {% endif -%}
+        {% if states('sensor.next_garden_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.next_garden_collection', 'is_collection_day') -%}
+        - 🌳 **Garden:** {{ states('sensor.garden_collection_status') }}
+        {%- if state_attr('sensor.garden_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.garden_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
+        {% endif %}
+
+  # Normal Collection Dates (when NOT collection day)
+  - type: markdown
+    title: "Upcoming Collections"
+    content: |
+      {% for entity_id in ['sensor.next_refuse_collection', 'sensor.next_recycling_collection', 'sensor.next_food_collection', 'sensor.next_garden_collection'] -%}
+      {% if states(entity_id) not in ['unavailable', 'unknown'] and not state_attr(entity_id, 'is_collection_day') -%}
+      {% set icon = '🗑️' if 'refuse' in entity_id 
+                else '♻️' if 'recycling' in entity_id 
+                else '🍎' if 'food' in entity_id 
+                else '🌳' -%}
+      {% set name = entity_id.split('_')[1] | title -%}
+      
+      **{{ icon }} {{ name }}:** {{ states(entity_id) }}  
+      *{{ state_attr(entity_id, 'status') }}*
+      
+      {% endif -%}
+      {% endfor %}
+
+  # Live Status Summary (replaces individual glance cards)
+  - type: markdown
+    content: |
+      {% if state_attr('sensor.next_refuse_collection', 'is_collection_day') %}
+      ## 🗑️ Refuse Collection - TODAY
+      **Status:** {{ states('sensor.refuse_collection_status') }}  
+      **Next Scheduled:** {{ states('sensor.next_refuse_collection') }}
+      
+      {% endif -%}
+      {% if state_attr('sensor.next_recycling_collection', 'is_collection_day') %}
+      ## ♻️ Recycling Collection - TODAY
+      **Status:** {{ states('sensor.recycling_collection_status') }}  
+      **Next Scheduled:** {{ states('sensor.next_recycling_collection') }}
+      
+      {% endif -%}
+      {% if state_attr('sensor.next_garden_collection', 'is_collection_day') %}
+      ## 🌳 Garden Collection - TODAY
+      **Status:** {{ states('sensor.garden_collection_status') }}  
+      **Next Scheduled:** {{ states('sensor.next_garden_collection') }}
+      
+      {% endif %}
+
+  # Live Collection Details (always show when any collection is active)
+  - type: markdown
+    title: "Live Collection Status"
+    content: |
+      {% for entity_pair in [
+        ['sensor.next_refuse_collection', 'sensor.refuse_collection_status', '🗑️ Refuse'],
+        ['sensor.next_recycling_collection', 'sensor.recycling_collection_status', '♻️ Recycling'],
+        ['sensor.next_food_collection', 'sensor.food_collection_status', '🍎 Food'],
+        ['sensor.next_garden_collection', 'sensor.garden_collection_status', '🌳 Garden']
+      ] -%}
+      {% set date_entity, status_entity, display_name = entity_pair -%}
+      {% if states(date_entity) not in ['unavailable', 'unknown'] and state_attr(date_entity, 'is_collection_day') -%}
+      
+      ### {{ display_name }}: {{ states(status_entity) }}
+      {% if state_attr(status_entity, 'completed_time') -%}
+      **Completed:** {{ state_attr(status_entity, 'completed_time').strftime('%-I:%M %p') }}
+      {% endif -%}
+      {% if state_attr(status_entity, 'reason') -%}
+      **Reason:** {{ state_attr(status_entity, 'reason') }}
+      {% endif -%}
+      {% if state_attr(status_entity, 'schedule') -%}
+      **Schedule:** {{ state_attr(status_entity, 'schedule') }}
+      {% endif -%}
+      {% if state_attr(status_entity, 'round') -%}
+      **Round:** {{ state_attr(status_entity, 'round') }}
+      {% endif -%}
+      
+      {% endif -%}
+      {% endfor %}

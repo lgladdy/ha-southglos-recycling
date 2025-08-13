@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "South Gloucestershire Bins Setup",
+        "description": "Enter your postcode to find your address and set up bin collection tracking.",
+        "data": {
+          "postcode": "Postcode"
+        }
+      },
+      "select_address": {
+        "title": "Select Your Address",
+        "description": "Multiple addresses were found for this postcode. Please select your address.",
+        "data": {
+          "address": "Address"
+        }
+      }
+    },
+    "error": {
+      "no_addresses_found": "No addresses found for this postcode. Please check and try again.",
+      "unknown": "Unexpected error occurred. Please try again."
+    },
+    "abort": {
+      "already_configured": "This address is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "South Gloucestershire Bins Options"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "domain": "southglos_bins",
+  "name": "South Gloucestershire Recycling Collections",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/lgladdy/ha-southglos-recycling",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": ["aiohttp"],
+  "version": "1.0.0"
+}
