@@ -1,0 +1,6 @@
+{
+  "name": "South Gloucestershire Recycling Collections",
+  "content_in_root": false,
+  "country": ["GB"],
+  "homeassistant": "2024.7.1"
+}
