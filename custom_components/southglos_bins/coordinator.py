@@ -27,6 +27,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Initialize the coordinator."""
         self.api = SouthGlosBinsAPI(hass)
         self.uprn = entry.data[CONF_UPRN]
+        self._last_update_date = None
         
         # Start with normal update interval
         update_interval = timedelta(seconds=UPDATE_INTERVAL_NORMAL)
@@ -41,7 +42,17 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
+            # Check if we need to force update due to midnight crossing
+            current_date = date.today()
+            should_force_update = self._should_force_update_on_midnight_crossing(current_date)
+            
+            if should_force_update:
+                _LOGGER.debug("Forcing update due to midnight crossing into collection day")
+            
             data = await self.api.get_collection_data(self.uprn)
+            
+            # Update the last update date
+            self._last_update_date = current_date
             
             # Check if today is a collection day and adjust update frequency
             await self._adjust_update_interval(data)
@@ -112,6 +123,31 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return True
         
         return False
+
+    def _should_force_update_on_midnight_crossing(self, current_date: date) -> bool:
+        """Check if we should force an update due to crossing midnight into a collection day."""
+        if not self.data or self._last_update_date is None:
+            return False
+        
+        # If we haven't crossed midnight, no need to update
+        if self._last_update_date >= current_date:
+            return False
+        
+        # Check if today is a collection day for any collection type
+        collections = self.data.get("collections", {})
+        for collection_type, collection_info in collections.items():
+            next_collection = collection_info.get("next_collection")
+            if next_collection and next_collection == current_date:
+                return True
+        
+        return False
+
+    async def async_request_refresh_if_needed(self) -> None:
+        """Request refresh if we've crossed midnight into a collection day."""
+        current_date = date.today()
+        if self._should_force_update_on_midnight_crossing(current_date):
+            _LOGGER.debug("Requesting refresh due to midnight crossing")
+            await self.async_request_refresh()
 
     def get_collection_date(self, collection_type: str) -> date | None:
         """Get next collection date for a specific type."""
