@@ -99,6 +99,9 @@ cards:
       {% if state_attr(status_entity, 'reason') -%}
       **Reason:** {{ state_attr(status_entity, 'reason') }}
       {% endif -%}
+      {% if state_attr(status_entity, 'last_updated') -%}
+      **Last Updated:** {{ state_attr(status_entity, 'last_updated').strftime('%-I:%M %p') }}
+      {% endif -%}
       {% if state_attr(status_entity, 'schedule') -%}
       **Schedule:** {{ state_attr(status_entity, 'schedule') }}
       {% endif -%}

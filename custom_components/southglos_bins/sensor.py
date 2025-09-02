@@ -69,8 +69,6 @@ class CollectionDateSensor(CoordinatorEntity[SouthGlosBinsCoordinator], SensorEn
     @property
     def native_value(self) -> date | None:
         """Return the next collection date."""
-        # Check if we need to refresh due to midnight crossing before returning value
-        self.hass.async_create_task(self.coordinator.async_request_refresh_if_needed())
         return self.coordinator.get_collection_date(self._collection_type)
 
     @property
@@ -136,8 +134,6 @@ class LiveStatusSensor(CoordinatorEntity[SouthGlosBinsCoordinator], SensorEntity
     @property
     def native_value(self) -> str:
         """Return the live status."""
-        # Check if we need to refresh due to midnight crossing before returning value
-        self.hass.async_create_task(self.coordinator.async_request_refresh_if_needed())
         live_status = self.coordinator.get_live_status(self._collection_type)
         if live_status:
             return live_status

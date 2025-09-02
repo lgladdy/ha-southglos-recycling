@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time
 from typing import Any
+import asyncio
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.event import async_track_time_interval
 
 from .api import SouthGlosBinsAPI, SouthGlosBinsAPIError
 from .const import (
@@ -28,6 +30,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.api = SouthGlosBinsAPI(hass)
         self.uprn = entry.data[CONF_UPRN]
         self._last_update_date = None
+        self._midnight_check_task = None
         
         # Start with normal update interval
         update_interval = timedelta(seconds=UPDATE_INTERVAL_NORMAL)
@@ -38,6 +41,9 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=update_interval,
         )
+        
+        # Schedule midnight checks
+        self._schedule_midnight_checks()
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
@@ -88,6 +94,18 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Schedule next update with new interval
             self._schedule_refresh()
 
+    def _is_collection_day_for_type(self, collection_type: str, collections: dict, live_status: dict, today: date) -> bool:
+        """Helper to check if today is collection day for a specific type."""
+        collection_info = collections.get(collection_type, {})
+        next_collection = collection_info.get("next_collection")
+        last_collection = collection_info.get("last_collection")
+        
+        # Collection day if:
+        # 1. Next collection is today, OR
+        # 2. Last collection is today AND there's live status (collection in progress/completed today)
+        return (next_collection == today or 
+                (last_collection == today and collection_type in live_status))
+
     def is_collection_day(self, collection_type: str | None = None) -> bool:
         """Check if today is a collection day."""
         if not self.data:
@@ -98,31 +116,13 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         live_status = self.data.get("live_status", {})
         
         if collection_type:
-            collection_info = collections.get(collection_type, {})
-            next_collection = collection_info.get("next_collection")
-            last_collection = collection_info.get("last_collection")
-            
-            # Collection day if:
-            # 1. Next collection is today, OR
-            # 2. Last collection is today AND there's live status (collection in progress/completed today)
-            if next_collection == today:
-                return True
-            elif last_collection == today and collection_type in live_status:
-                return True
-            
-            return False
+            return self._is_collection_day_for_type(collection_type, collections, live_status, today)
         else:
             # Check if any collection is today
-            for collection_type_key, collection_info in collections.items():
-                next_collection = collection_info.get("next_collection")
-                last_collection = collection_info.get("last_collection")
-                
-                if next_collection == today:
-                    return True
-                elif last_collection == today and collection_type_key in live_status:
-                    return True
-        
-        return False
+            return any(
+                self._is_collection_day_for_type(collection_type_key, collections, live_status, today)
+                for collection_type_key in collections.keys()
+            )
 
     def _should_force_update_on_midnight_crossing(self, current_date: date) -> bool:
         """Check if we should force an update due to crossing midnight into a collection day."""
@@ -130,17 +130,54 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return False
         
         # If we haven't crossed midnight, no need to update
-        if self._last_update_date >= current_date:
+        if self._last_update_date > current_date:
             return False
         
-        # Check if today is a collection day for any collection type
+        # If we already updated today, check if we need another update for collection day logic
+        if self._last_update_date == current_date:
+            # Only force update if we think today should be a collection day but our data doesn't reflect that
+            collections = self.data.get("collections", {})
+            for collection_type, collection_info in collections.items():
+                original_next_collection = collection_info.get("original_next_collection")
+                next_collection = collection_info.get("next_collection")
+                
+                # If original next collection is today but our adjusted date isn't, force update
+                if (original_next_collection == current_date and 
+                    next_collection != current_date):
+                    return True
+            return False
+        
+        # Check if today is a collection day for any collection type (based on original schedule)
         collections = self.data.get("collections", {})
         for collection_type, collection_info in collections.items():
-            next_collection = collection_info.get("next_collection")
-            if next_collection and next_collection == current_date:
+            original_next_collection = collection_info.get("original_next_collection")
+            if original_next_collection and original_next_collection == current_date:
                 return True
         
         return False
+    
+    def _schedule_midnight_checks(self) -> None:
+        """Schedule checks every minute after midnight to catch collection day transitions."""
+        # Cancel existing task if any
+        if self._midnight_check_task:
+            self._midnight_check_task()
+        
+        # Schedule a task to run every minute to check for midnight crossing
+        self._midnight_check_task = async_track_time_interval(
+            self.hass,
+            self._check_midnight_crossing,
+            timedelta(minutes=1)
+        )
+    
+    async def _check_midnight_crossing(self, now: datetime) -> None:
+        """Check if we've crossed midnight and need to update for collection day logic."""
+        current_date = now.date()
+        
+        # Only check around midnight (between 00:00 and 00:05)
+        if now.time() <= time(0, 5):
+            if self._should_force_update_on_midnight_crossing(current_date):
+                _LOGGER.debug("Midnight crossing detected, forcing update")
+                await self.async_request_refresh()
 
     async def async_request_refresh_if_needed(self) -> None:
         """Request refresh if we've crossed midnight into a collection day."""
@@ -201,3 +238,9 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         collections = self.data.get("collections", {})
         collection_info = collections.get(collection_type, {})
         return collection_info.get("available", False)
+    
+    async def async_shutdown(self) -> None:
+        """Clean up resources."""
+        if self._midnight_check_task:
+            self._midnight_check_task()
+            self._midnight_check_task = None
