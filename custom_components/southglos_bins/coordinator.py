@@ -58,9 +58,9 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug(f"Fetching collection data for UPRN {self.uprn} on {current_date}")
             data = await self.api.get_collection_data(self.uprn)
 
-            # Update the last update date
-            self._last_update_date = current_date
-            _LOGGER.debug(f"Updated last_update_date to {current_date}")
+            # Update the last update datetime
+            self._last_update_date = datetime.now()
+            _LOGGER.debug(f"Updated last_update_date to {self._last_update_date}")
             
             # Check if today is a collection day and adjust update frequency
             await self._adjust_update_interval(data)
@@ -133,11 +133,11 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return False
 
         # If we haven't crossed to a new day, no need to update
-        if self._last_update_date >= current_date:
+        if self._last_update_date.date() >= current_date:
             _LOGGER.debug(f"Last update was {self._last_update_date}, current date {current_date}, not forcing update")
             return False
 
-        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date}, current {current_date}")
+        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date.date()}, current {current_date}")
 
         # We've moved to a new day - check if today is a collection day for any collection type
         collections = self.data.get("collections", {})
