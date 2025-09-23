@@ -51,14 +51,16 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check if we need to force update due to midnight crossing
             current_date = date.today()
             should_force_update = self._should_force_update_on_midnight_crossing(current_date)
-            
+
             if should_force_update:
-                _LOGGER.debug("Forcing update due to midnight crossing into collection day")
-            
+                _LOGGER.info("Forcing update due to midnight crossing into collection day")
+
+            _LOGGER.debug(f"Fetching collection data for UPRN {self.uprn} on {current_date}")
             data = await self.api.get_collection_data(self.uprn)
-            
+
             # Update the last update date
             self._last_update_date = current_date
+            _LOGGER.debug(f"Updated last_update_date to {current_date}")
             
             # Check if today is a collection day and adjust update frequency
             await self._adjust_update_interval(data)
@@ -127,57 +129,50 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _should_force_update_on_midnight_crossing(self, current_date: date) -> bool:
         """Check if we should force an update due to crossing midnight into a collection day."""
         if not self.data or self._last_update_date is None:
+            _LOGGER.debug("No previous data or last update date, not forcing update")
             return False
-        
-        # If we haven't crossed midnight, no need to update
-        if self._last_update_date > current_date:
+
+        # If we haven't crossed to a new day, no need to update
+        if self._last_update_date >= current_date:
+            _LOGGER.debug(f"Last update was {self._last_update_date}, current date {current_date}, not forcing update")
             return False
-        
-        # If we already updated today, check if we need another update for collection day logic
-        if self._last_update_date == current_date:
-            # Only force update if we think today should be a collection day but our data doesn't reflect that
-            collections = self.data.get("collections", {})
-            for collection_type, collection_info in collections.items():
-                original_next_collection = collection_info.get("original_next_collection")
-                next_collection = collection_info.get("next_collection")
-                
-                # If original next collection is today but our adjusted date isn't, force update
-                if (original_next_collection == current_date and 
-                    next_collection != current_date):
-                    return True
-            return False
-        
-        # Check if today is a collection day for any collection type (based on original schedule)
+
+        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date}, current {current_date}")
+
+        # We've moved to a new day - check if today is a collection day for any collection type
         collections = self.data.get("collections", {})
         for collection_type, collection_info in collections.items():
-            original_next_collection = collection_info.get("original_next_collection")
-            if original_next_collection and original_next_collection == current_date:
+            next_collection = collection_info.get("next_collection")
+            if next_collection and next_collection == current_date:
+                _LOGGER.debug(f"Today ({current_date}) is collection day for {collection_type}, forcing update")
                 return True
-        
+
+        _LOGGER.debug(f"Today ({current_date}) is not a collection day, no forced update needed")
         return False
     
     def _schedule_midnight_checks(self) -> None:
-        """Schedule checks every minute after midnight to catch collection day transitions."""
+        """Schedule checks to catch collection day transitions when dates change."""
         # Cancel existing task if any
         if self._midnight_check_task:
             self._midnight_check_task()
-        
-        # Schedule a task to run every minute to check for midnight crossing
+
+        # Schedule a task to run every 5 minutes to check for date changes
+        # This will catch the transition when we move into a collection day
         self._midnight_check_task = async_track_time_interval(
             self.hass,
             self._check_midnight_crossing,
-            timedelta(minutes=1)
+            timedelta(minutes=5)
         )
     
     async def _check_midnight_crossing(self, now: datetime) -> None:
         """Check if we've crossed midnight and need to update for collection day logic."""
         current_date = now.date()
-        
-        # Only check around midnight (between 00:00 and 00:05)
-        if now.time() <= time(0, 5):
-            if self._should_force_update_on_midnight_crossing(current_date):
-                _LOGGER.debug("Midnight crossing detected, forcing update")
-                await self.async_request_refresh()
+
+        # Check if we need to update due to date change
+        # We'll check this more frequently instead of just around midnight
+        if self._should_force_update_on_midnight_crossing(current_date):
+            _LOGGER.info(f"Date crossing detected at {now.strftime('%H:%M')}, forcing update for collection day logic")
+            await self.async_request_refresh()
 
     async def async_request_refresh_if_needed(self) -> None:
         """Request refresh if we've crossed midnight into a collection day."""
