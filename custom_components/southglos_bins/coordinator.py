@@ -127,7 +127,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     def _should_force_update_on_midnight_crossing(self, current_date: date) -> bool:
-        """Check if we should force an update due to crossing midnight into a collection day."""
+        """Check if we should force an update due to crossing midnight."""
         if not self.data or self._last_update_date is None:
             _LOGGER.debug("No previous data or last update date, not forcing update")
             return False
@@ -137,18 +137,18 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug(f"Last update was {self._last_update_date}, current date {current_date}, not forcing update")
             return False
 
-        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date.date()}, current {current_date}")
+        # We've moved to a new day - force update to recalculate sensor attributes
+        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date.date()}, current {current_date}, forcing update")
 
-        # We've moved to a new day - check if today is a collection day for any collection type
+        # Check if today is a collection day for any collection type (for logging)
         collections = self.data.get("collections", {})
         for collection_type, collection_info in collections.items():
             next_collection = collection_info.get("next_collection")
             if next_collection and next_collection == current_date:
-                _LOGGER.debug(f"Today ({current_date}) is collection day for {collection_type}, forcing update")
-                return True
+                _LOGGER.debug(f"Today ({current_date}) is collection day for {collection_type}")
+                break
 
-        _LOGGER.debug(f"Today ({current_date}) is not a collection day, no forced update needed")
-        return False
+        return True
     
     def _schedule_midnight_checks(self) -> None:
         """Schedule checks to catch collection day transitions when dates change."""
@@ -165,17 +165,17 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
     
     async def _check_midnight_crossing(self, now: datetime) -> None:
-        """Check if we've crossed midnight and need to update for collection day logic."""
+        """Check if we've crossed midnight and need to update sensor attributes."""
         current_date = now.date()
 
         # Check if we need to update due to date change
         # We'll check this more frequently instead of just around midnight
         if self._should_force_update_on_midnight_crossing(current_date):
-            _LOGGER.info(f"Date crossing detected at {now.strftime('%H:%M')}, forcing update for collection day logic")
+            _LOGGER.info(f"Date crossing detected at {now.strftime('%H:%M')}, forcing update to recalculate sensor attributes")
             await self.async_request_refresh()
 
     async def async_request_refresh_if_needed(self) -> None:
-        """Request refresh if we've crossed midnight into a collection day."""
+        """Request refresh if we've crossed midnight to recalculate sensor attributes."""
         current_date = date.today()
         if self._should_force_update_on_midnight_crossing(current_date):
             _LOGGER.debug("Requesting refresh due to midnight crossing")
