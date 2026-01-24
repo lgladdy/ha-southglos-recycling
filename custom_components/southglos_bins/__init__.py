@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 from .const import DOMAIN
 from .coordinator import SouthGlosBinsCoordinator
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

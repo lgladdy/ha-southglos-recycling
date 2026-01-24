@@ -4,11 +4,12 @@ A Home Assistant custom integration for tracking bin collection schedules in Sou
 
 ## Features
 
-🗑️ **Collection Tracking** - Monitor Refuse, Recycling, Food, and Garden collections  
-📅 **Smart Scheduling** - Daily updates normally, 15-minute updates on collection days  
-🚛 **Live Status** - Real-time collection progress when bins are being collected  
-⏰ **Completion Times** - See exactly when your bins were collected  
-🏠 **Address-Specific** - Only shows collections available for your specific address  
+🗑️ **Collection Tracking** - Monitor Refuse, Recycling, Food, and Garden collections
+📅 **Smart Scheduling** - Daily updates normally, 15-minute updates on collection days
+🚛 **Live Status** - Real-time collection progress when bins are being collected
+⏰ **Completion Times** - See exactly when your bins were collected
+📆 **Calendar Integration** - View collection dates in Home Assistant's calendar view
+🏠 **Address-Specific** - Only shows collections available for your specific address
 🎯 **Collection Day Detection** - Automatically identifies when collections are happening
 
 ## Installation
@@ -40,9 +41,13 @@ A Home Assistant custom integration for tracking bin collection schedules in Sou
 5. If multiple addresses are found, select your specific address
 6. The integration will create sensors for your available collection types
 
-## Sensors Created
+## Entities Created
 
-For each available collection type, two sensors are created:
+For each available collection type, the integration creates sensors and calendar entities:
+
+### Sensors
+
+Two sensors per collection type:
 
 ### Collection Date Sensors
 - `sensor.next_refuse_collection` - Next refuse collection date
@@ -67,6 +72,19 @@ For each available collection type, two sensors are created:
 - `round` - Collection round (e.g., "CK 14 Wed")
 - `completed_time` - Exact time collection was completed (when applicable)
 
+### Calendar Entities
+- `calendar.refuse_collection_calendar` - Refuse collection calendar
+- `calendar.recycling_collection_calendar` - Recycling collection calendar
+- `calendar.food_collection_calendar` - Food collection calendar (if available)
+- `calendar.garden_collection_calendar` - Garden collection calendar (if available)
+
+Each calendar displays:
+- **Next collection date** as an upcoming event
+- **Last collection date** as a historical event
+- Event details including schedule, round, and live status on collection days
+
+View your collections in Home Assistant's **Calendar** view for a visual schedule. Click on events to see detailed information including collection round, schedule pattern, and real-time status updates on collection days.
+
 ## Dashboard Cards
 
 The integration includes an example dashboard configuration in `example-card.yaml`:
@@ -87,6 +105,7 @@ The integration connects to South Gloucestershire Council's waste management sys
 3. **Smart Updates** - Updates daily normally, every 15 minutes on collection days
 4. **Collection Day Detection** - Recognizes when collections are scheduled or happening today
 5. **Live Tracking** - Shows real-time progress: "In Progress", "Closed Completed", etc.
+6. **Calendar Integration** - Displays collection dates in Home Assistant's calendar view with full event details
 
 ## API Endpoints
 
@@ -106,7 +125,7 @@ The integration connects to South Gloucestershire Council's waste management sys
 ```
 Upcoming Collections
 🗑️ Refuse: 2025-08-20 - In 7 days
-♻️ Recycling: 2025-08-20 - In 7 days  
+♻️ Recycling: 2025-08-20 - In 7 days
 🌳 Garden: 2025-08-19 - In 6 days
 ```
 
@@ -122,6 +141,13 @@ Collections today:
 Status: Closed Completed
 Next Scheduled: 2025-08-27
 ```
+
+### Calendar View
+The Calendar view shows all your collection dates in a visual calendar format:
+- Each collection type appears as a separate calendar
+- Next and previous collection dates are displayed as all-day events
+- Click events to see schedule, round, and live status information
+- Live status updates appear automatically on collection days
 
 ## Troubleshooting
 
