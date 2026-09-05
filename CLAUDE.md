@@ -6,15 +6,22 @@ This is a Home Assistant custom integration for tracking bin collection schedule
 
 ```
 custom_components/southglos_bins/
-├── __init__.py              # Main integration setup and entry point
+├── __init__.py              # Integration setup; stores coordinator in entry.runtime_data
 ├── api.py                   # REST API client for UPRN lookup and collection data
+├── calendar.py              # Calendar entities per collection type
 ├── config_flow.py           # Configuration flow for postcode setup
 ├── const.py                 # Constants and configuration values
 ├── coordinator.py           # Data update coordinator with smart scheduling
-├── manifest.json            # Integration metadata and requirements
+├── entity.py                # Shared base entity (device_info, has_entity_name)
+├── manifest.json            # Integration metadata
 ├── sensor.py                # Sensor entities for collection dates and live status
-└── strings.json             # UI text and error messages
+├── strings.json             # UI text and error messages
+└── translations/
+    └── en.json              # English translations (mirrors strings.json)
 ```
+
+Root: `hacs.json`, `.github/workflows/` (hassfest, HACS, ruff, pytest),
+`tests/`, `pyproject.toml`, `requirements_test.txt`, `CHANGELOG.md`.
 
 ## Key Features
 

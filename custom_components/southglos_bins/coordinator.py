@@ -1,241 +1,167 @@
 """DataUpdateCoordinator for South Gloucestershire Bins."""
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, date, timedelta, time
+from datetime import date, datetime, timedelta
 from typing import Any
-import asyncio
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .api import SouthGlosBinsAPI, SouthGlosBinsAPIError
 from .const import (
-    DOMAIN,
+    CONF_POSTCODE,
     CONF_UPRN,
-    UPDATE_INTERVAL_NORMAL,
+    DOMAIN,
     UPDATE_INTERVAL_COLLECTION_DAY,
+    UPDATE_INTERVAL_NORMAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
+type SouthGlosBinsConfigEntry = ConfigEntry[SouthGlosBinsCoordinator]
+
 
 class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Class to manage fetching South Gloucestershire Bins data."""
+    """Manage fetching South Gloucestershire Bins data."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    config_entry: SouthGlosBinsConfigEntry
+
+    def __init__(
+        self, hass: HomeAssistant, entry: SouthGlosBinsConfigEntry
+    ) -> None:
         """Initialize the coordinator."""
-        self.api = SouthGlosBinsAPI(hass)
-        self.uprn = entry.data[CONF_UPRN]
-        self._last_update_date = None
-        self._midnight_check_task = None
-        
-        # Start with normal update interval
-        update_interval = timedelta(seconds=UPDATE_INTERVAL_NORMAL)
-        
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=update_interval,
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_NORMAL),
+            config_entry=entry,
         )
-        
-        # Schedule midnight checks
-        self._schedule_midnight_checks()
+        self.api = SouthGlosBinsAPI(hass)
+        self.uprn: str = entry.data[CONF_UPRN]
+        self.postcode: str = entry.data.get(CONF_POSTCODE, "")
+
+        # Collection-day detection is derived from the current date, so force a
+        # refresh just after midnight to recalculate state and attributes.
+        entry.async_on_unload(
+            async_track_time_change(
+                hass, self._handle_midnight, hour=0, minute=0, second=30
+            )
+        )
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from API."""
+        """Fetch data from the API."""
         try:
-            # Check if we need to force update due to midnight crossing
-            current_date = date.today()
-            should_force_update = self._should_force_update_on_midnight_crossing(current_date)
-
-            if should_force_update:
-                _LOGGER.info("Forcing update due to midnight crossing into collection day")
-
-            _LOGGER.debug(f"Fetching collection data for UPRN {self.uprn} on {current_date}")
             data = await self.api.get_collection_data(self.uprn)
-
-            # Update the last update datetime
-            self._last_update_date = datetime.now()
-            _LOGGER.debug(f"Updated last_update_date to {self._last_update_date}")
-            
-            # Check if today is a collection day and adjust update frequency
-            await self._adjust_update_interval(data)
-            
-            return data
-            
         except SouthGlosBinsAPIError as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
-    async def _adjust_update_interval(self, data: dict[str, Any]) -> None:
-        """Adjust update interval based on whether today is a collection day."""
-        today = date.today()
-        is_collection_day = False
-        
-        collections = data.get("collections", {})
-        for collection_type, collection_info in collections.items():
-            next_collection = collection_info.get("next_collection")
-            if next_collection and next_collection == today:
-                is_collection_day = True
-                break
-        
-        # Set update interval based on collection day status
-        if is_collection_day:
-            new_interval = timedelta(seconds=UPDATE_INTERVAL_COLLECTION_DAY)
-            _LOGGER.debug("Collection day detected, updating every 15 minutes")
-        else:
-            new_interval = timedelta(seconds=UPDATE_INTERVAL_NORMAL)
-            _LOGGER.debug("Normal day, updating every 24 hours")
-        
-        # Only update if interval has changed
-        if self.update_interval != new_interval:
-            self.update_interval = new_interval
-            # Schedule next update with new interval
-            self._schedule_refresh()
+        self._adjust_update_interval(data)
+        return data
 
-    def _is_collection_day_for_type(self, collection_type: str, collections: dict, live_status: dict, today: date) -> bool:
-        """Helper to check if today is collection day for a specific type."""
+    async def _handle_midnight(self, now: datetime) -> None:
+        """Refresh shortly after midnight so date-based state stays correct."""
+        _LOGGER.debug("Midnight rollover detected, refreshing collection data")
+        await self.async_request_refresh()
+
+    @callback
+    def _adjust_update_interval(self, data: dict[str, Any]) -> None:
+        """Poll more frequently on collection days for live status updates."""
+        today = dt_util.now().date()
+        is_collection_day = any(
+            info.get("next_collection") == today
+            for info in data.get("collections", {}).values()
+        )
+        new_interval = timedelta(
+            seconds=UPDATE_INTERVAL_COLLECTION_DAY
+            if is_collection_day
+            else UPDATE_INTERVAL_NORMAL
+        )
+        if self.update_interval != new_interval:
+            _LOGGER.debug("Adjusting update interval to %s", new_interval)
+            self.update_interval = new_interval
+
+    def _is_collection_day_for_type(
+        self, collection_type: str, today: date
+    ) -> bool:
+        """Return whether today is a collection day for a specific type."""
+        collections = self.data.get("collections", {})
+        live_status = self.data.get("live_status", {})
         collection_info = collections.get(collection_type, {})
         next_collection = collection_info.get("next_collection")
         last_collection = collection_info.get("last_collection")
-        
-        # Collection day if:
-        # 1. Next collection is today, OR
-        # 2. Last collection is today AND there's live status (collection in progress/completed today)
-        return (next_collection == today or 
-                (last_collection == today and collection_type in live_status))
+
+        # Collection day when the next collection is today, or the collection
+        # happened today and there is live status for it (in progress / done).
+        return next_collection == today or (
+            last_collection == today and collection_type in live_status
+        )
 
     def is_collection_day(self, collection_type: str | None = None) -> bool:
-        """Check if today is a collection day."""
+        """Return whether today is a collection day."""
         if not self.data:
             return False
-            
-        today = date.today()
-        collections = self.data.get("collections", {})
-        live_status = self.data.get("live_status", {})
-        
+
+        today = dt_util.now().date()
         if collection_type:
-            return self._is_collection_day_for_type(collection_type, collections, live_status, today)
-        else:
-            # Check if any collection is today
-            return any(
-                self._is_collection_day_for_type(collection_type_key, collections, live_status, today)
-                for collection_type_key in collections.keys()
-            )
+            return self._is_collection_day_for_type(collection_type, today)
 
-    def _should_force_update_on_midnight_crossing(self, current_date: date) -> bool:
-        """Check if we should force an update due to crossing midnight."""
-        if not self.data or self._last_update_date is None:
-            _LOGGER.debug("No previous data or last update date, not forcing update")
-            return False
-
-        # If we haven't crossed to a new day, no need to update
-        if self._last_update_date.date() >= current_date:
-            _LOGGER.debug(f"Last update was {self._last_update_date}, current date {current_date}, not forcing update")
-            return False
-
-        # We've moved to a new day - force update to recalculate sensor attributes
-        _LOGGER.debug(f"Crossed to new day: last update {self._last_update_date.date()}, current {current_date}, forcing update")
-
-        # Check if today is a collection day for any collection type (for logging)
-        collections = self.data.get("collections", {})
-        for collection_type, collection_info in collections.items():
-            next_collection = collection_info.get("next_collection")
-            if next_collection and next_collection == current_date:
-                _LOGGER.debug(f"Today ({current_date}) is collection day for {collection_type}")
-                break
-
-        return True
-    
-    def _schedule_midnight_checks(self) -> None:
-        """Schedule checks to catch collection day transitions when dates change."""
-        # Cancel existing task if any
-        if self._midnight_check_task:
-            self._midnight_check_task()
-
-        # Schedule a task to run every 5 minutes to check for date changes
-        # This will catch the transition when we move into a collection day
-        self._midnight_check_task = async_track_time_interval(
-            self.hass,
-            self._check_midnight_crossing,
-            timedelta(minutes=5)
+        return any(
+            self._is_collection_day_for_type(key, today)
+            for key in self.data.get("collections", {})
         )
-    
-    async def _check_midnight_crossing(self, now: datetime) -> None:
-        """Check if we've crossed midnight and need to update sensor attributes."""
-        current_date = now.date()
-
-        # Check if we need to update due to date change
-        # We'll check this more frequently instead of just around midnight
-        if self._should_force_update_on_midnight_crossing(current_date):
-            _LOGGER.info(f"Date crossing detected at {now.strftime('%H:%M')}, forcing update to recalculate sensor attributes")
-            await self.async_request_refresh()
-
-    async def async_request_refresh_if_needed(self) -> None:
-        """Request refresh if we've crossed midnight to recalculate sensor attributes."""
-        current_date = date.today()
-        if self._should_force_update_on_midnight_crossing(current_date):
-            _LOGGER.debug("Requesting refresh due to midnight crossing")
-            await self.async_request_refresh()
 
     def get_collection_date(self, collection_type: str) -> date | None:
-        """Get next collection date for a specific type."""
+        """Return the next collection date for a type."""
         if not self.data:
             return None
-            
-        collections = self.data.get("collections", {})
-        collection_info = collections.get(collection_type, {})
-        return collection_info.get("next_collection")
+        return (
+            self.data.get("collections", {})
+            .get(collection_type, {})
+            .get("next_collection")
+        )
 
     def get_live_status(self, collection_type: str) -> str | None:
-        """Get live status for a collection type."""
+        """Return the live status for a collection type."""
         if not self.data:
             return None
-            
-        live_status = self.data.get("live_status", {})
-        status_info = live_status.get(collection_type, {})
-        
+        status_info = self.data.get("live_status", {}).get(collection_type, {})
         if isinstance(status_info, dict):
             return status_info.get("status")
-        
         return status_info
 
     def get_live_status_reason(self, collection_type: str) -> str | None:
-        """Get live status reason for a collection type."""
+        """Return the live status reason for a collection type."""
         if not self.data:
             return None
-            
-        live_status = self.data.get("live_status", {})
-        status_info = live_status.get(collection_type, {})
-        
+        status_info = self.data.get("live_status", {}).get(collection_type, {})
         if isinstance(status_info, dict):
             return status_info.get("reason")
-        
         return None
 
-    def get_collection_completed_time(self, collection_type: str) -> datetime | None:
-        """Get the completion time for a collection type."""
+    def get_collection_completed_time(
+        self, collection_type: str
+    ) -> datetime | None:
+        """Return the completion time for a collection type."""
         if not self.data:
             return None
-            
-        collections = self.data.get("collections", {})
-        collection_info = collections.get(collection_type, {})
-        return collection_info.get("last_completed")
+        return (
+            self.data.get("collections", {})
+            .get(collection_type, {})
+            .get("last_completed")
+        )
 
     def is_collection_available(self, collection_type: str) -> bool:
-        """Check if a collection type is available for this address."""
+        """Return whether a collection type is available for this address."""
         if not self.data:
             return False
-            
-        collections = self.data.get("collections", {})
-        collection_info = collections.get(collection_type, {})
-        return collection_info.get("available", False)
-    
-    async def async_shutdown(self) -> None:
-        """Clean up resources."""
-        if self._midnight_check_task:
-            self._midnight_check_task()
-            self._midnight_check_task = None
+        return (
+            self.data.get("collections", {})
+            .get(collection_type, {})
+            .get("available", False)
+        )

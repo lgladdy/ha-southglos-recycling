@@ -1,6 +1,5 @@
 {
   "name": "South Gloucestershire Recycling Collections",
-  "content_in_root": false,
-  "country": ["GB"],
-  "homeassistant": "2024.7.1"
+  "homeassistant": "2025.1.0",
+  "country": ["GB"]
 }

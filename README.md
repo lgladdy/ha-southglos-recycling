@@ -43,6 +43,11 @@ A Home Assistant custom integration for tracking bin collection schedules in Sou
 
 ## Entities Created
 
+All entities for an address are grouped under a single device named after that
+address. Because entity names are prefixed with the device name, your entity IDs
+will look like `sensor.1_test_road_next_refuse_collection` — the examples below
+use the short form for readability.
+
 For each available collection type, the integration creates sensors and calendar entities:
 
 ### Sensors
@@ -161,6 +166,16 @@ The Calendar view shows all your collection dates in a visual calendar format:
 - Check the Home Assistant logs for errors
 - Ensure your Home Assistant can access external APIs
 
+### Enable Debug Logging
+Add the following to `configuration.yaml` and restart:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.southglos_bins: debug
+```
+
 ### Incorrect Collection Dates
 - The integration shows data directly from South Gloucestershire Council
 - Collection dates may change due to bank holidays or service disruptions
@@ -180,6 +195,18 @@ Contributions are welcome! Please:
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
+
+### Development
+
+```bash
+pip install -r requirements_test.txt
+ruff check .
+ruff format --check .
+pytest
+```
+
+`manifest.json` and `hacs.json` are validated in CI by hassfest and the HACS
+action on every push and pull request.
 
 ## License
 
