@@ -1,0 +1,19 @@
+[project]
+name = "ha-southglos-recycling"
+version = "1.0.0"
+description = "Home Assistant integration for South Gloucestershire recycling and waste collections"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.13"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers"
