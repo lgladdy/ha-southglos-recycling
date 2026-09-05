@@ -4,13 +4,13 @@ A Home Assistant custom integration for tracking bin collection schedules in Sou
 
 ## Features
 
-🗑️ **Collection Tracking** - Monitor Refuse, Recycling, Food, and Garden collections
-📅 **Smart Scheduling** - Daily updates normally, 15-minute updates on collection days
-🚛 **Live Status** - Real-time collection progress when bins are being collected
-⏰ **Completion Times** - See exactly when your bins were collected
-📆 **Calendar Integration** - View collection dates in Home Assistant's calendar view
-🏠 **Address-Specific** - Only shows collections available for your specific address
-🎯 **Collection Day Detection** - Automatically identifies when collections are happening
+- 🗑️ **Collection Tracking** – Monitor Refuse, Recycling, Food, and Garden collections
+- 📅 **Smart Scheduling** – Daily updates normally, 15-minute updates on collection days
+- 🚛 **Live Status** – Real-time collection progress when bins are being collected
+- ⏰ **Completion Times** – See exactly when your bins were collected
+- 📆 **Calendar Integration** – View collection dates in Home Assistant's calendar view
+- 🏠 **Address-Specific** – Only shows collections available for your specific address
+- 🎯 **Collection Day Detection** – Automatically identifies when collections are happening
 
 ## Installation
 
