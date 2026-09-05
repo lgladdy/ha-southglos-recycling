@@ -40,7 +40,7 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
             except SouthGlosBinsAPIError:
                 _LOGGER.exception("Error connecting to the collections service")
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
@@ -76,10 +76,7 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_UPRN): vol.In(
-                        {
-                            str(addr["uprn"]): addr["address"]
-                            for addr in self._addresses
-                        }
+                        {str(addr["uprn"]): addr["address"] for addr in self._addresses}
                     )
                 }
             ),

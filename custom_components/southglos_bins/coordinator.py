@@ -31,9 +31,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     config_entry: SouthGlosBinsConfigEntry
 
-    def __init__(
-        self, hass: HomeAssistant, entry: SouthGlosBinsConfigEntry
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, entry: SouthGlosBinsConfigEntry) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,
@@ -86,9 +84,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("Adjusting update interval to %s", new_interval)
             self.update_interval = new_interval
 
-    def _is_collection_day_for_type(
-        self, collection_type: str, today: date
-    ) -> bool:
+    def _is_collection_day_for_type(self, collection_type: str, today: date) -> bool:
         """Return whether today is a collection day for a specific type."""
         collections = self.data.get("collections", {})
         live_status = self.data.get("live_status", {})
@@ -144,9 +140,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return status_info.get("reason")
         return None
 
-    def get_collection_completed_time(
-        self, collection_type: str
-    ) -> datetime | None:
+    def get_collection_completed_time(self, collection_type: str) -> datetime | None:
         """Return the completion time for a collection type."""
         if not self.data:
             return None

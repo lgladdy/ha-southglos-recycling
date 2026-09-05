@@ -85,9 +85,7 @@ async def test_no_addresses(hass: HomeAssistant, mock_api: AsyncMock) -> None:
     assert result["errors"] == {"base": "no_addresses_found"}
 
 
-async def test_duplicate_aborts(
-    hass: HomeAssistant, mock_api: AsyncMock
-) -> None:
+async def test_duplicate_aborts(hass: HomeAssistant, mock_api: AsyncMock) -> None:
     """Configuring the same UPRN twice aborts."""
     MockConfigEntry(domain=DOMAIN, unique_id="12345").add_to_hass(hass)
 

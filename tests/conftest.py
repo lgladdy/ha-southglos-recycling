@@ -15,7 +15,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture
-def mock_api() -> Generator[AsyncMock, None, None]:
+def mock_api() -> Generator[AsyncMock]:
     """Mock the South Gloucestershire API client."""
     with (
         patch(

@@ -11,9 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.southglos_bins.const import DOMAIN
 
 
-async def test_setup_and_unload(
-    hass: HomeAssistant, mock_api: AsyncMock
-) -> None:
+async def test_setup_and_unload(hass: HomeAssistant, mock_api: AsyncMock) -> None:
     """The entry sets up and unloads cleanly."""
     entry = MockConfigEntry(
         domain=DOMAIN,

@@ -44,15 +44,11 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
-        next_collection = self.coordinator.get_collection_date(
-            self._collection_type
-        )
+        next_collection = self.coordinator.get_collection_date(self._collection_type)
         today = dt_util.now().date()
         if not next_collection or next_collection < today:
             return None
-        return self._create_event(
-            next_collection, is_today=next_collection == today
-        )
+        return self._create_event(next_collection, is_today=next_collection == today)
 
     async def async_get_events(
         self,
@@ -70,17 +66,10 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
             self._collection_type, {}
         )
 
-        next_collection = self.coordinator.get_collection_date(
-            self._collection_type
-        )
-        if (
-            next_collection
-            and start_date.date() <= next_collection <= end_date.date()
-        ):
+        next_collection = self.coordinator.get_collection_date(self._collection_type)
+        if next_collection and start_date.date() <= next_collection <= end_date.date():
             events.append(
-                self._create_event(
-                    next_collection, is_today=next_collection == today
-                )
+                self._create_event(next_collection, is_today=next_collection == today)
             )
 
         last_collection = collection_info.get("last_collection")
@@ -94,9 +83,7 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
         events.sort(key=lambda event: event.start)
         return events
 
-    def _create_event(
-        self, event_date: date, *, is_today: bool
-    ) -> CalendarEvent:
+    def _create_event(self, event_date: date, *, is_today: bool) -> CalendarEvent:
         """Build a CalendarEvent for a collection date."""
         collection_info = {}
         if self.coordinator.data:
@@ -113,13 +100,9 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
             description_parts.append(f"Round Group: {round_group}")
 
         if is_today and self.coordinator.is_collection_day(self._collection_type):
-            if live_status := self.coordinator.get_live_status(
-                self._collection_type
-            ):
+            if live_status := self.coordinator.get_live_status(self._collection_type):
                 description_parts.append(f"Status: {live_status}")
-            if reason := self.coordinator.get_live_status_reason(
-                self._collection_type
-            ):
+            if reason := self.coordinator.get_live_status_reason(self._collection_type):
                 description_parts.append(f"Reason: {reason}")
             completed_time = self.coordinator.get_collection_completed_time(
                 self._collection_type

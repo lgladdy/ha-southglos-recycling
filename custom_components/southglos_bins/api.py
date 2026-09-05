@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
-from .const import COLLECTIONS_API_URL, COLLECTION_TYPES, UPRN_API_URL
+from .const import COLLECTION_TYPES, COLLECTIONS_API_URL, UPRN_API_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,18 +27,14 @@ class SouthGlosBinsAPI:
         """Initialize the API client."""
         self._session = async_get_clientsession(hass)
 
-    async def get_addresses_for_postcode(
-        self, postcode: str
-    ) -> list[dict[str, Any]]:
+    async def get_addresses_for_postcode(self, postcode: str) -> list[dict[str, Any]]:
         """Return the list of addresses known for a postcode."""
         try:
             async with self._session.get(f"{UPRN_API_URL}/{postcode}") as response:
                 response.raise_for_status()
                 data = await response.json()
         except aiohttp.ClientError as err:
-            raise SouthGlosBinsAPIError(
-                f"Error communicating with API: {err}"
-            ) from err
+            raise SouthGlosBinsAPIError(f"Error communicating with API: {err}") from err
 
         addresses: list[dict[str, Any]] = []
         if isinstance(data, list):
@@ -51,9 +47,7 @@ class SouthGlosBinsAPI:
                     item.get("Postcode"),
                 ]
                 full_address = ", ".join(part for part in address_parts if part)
-                addresses.append(
-                    {"uprn": item.get("Uprn"), "address": full_address}
-                )
+                addresses.append({"uprn": item.get("Uprn"), "address": full_address})
 
         return addresses
 
@@ -66,9 +60,7 @@ class SouthGlosBinsAPI:
                 response.raise_for_status()
                 data = await response.json()
         except aiohttp.ClientError as err:
-            raise SouthGlosBinsAPIError(
-                f"Error communicating with API: {err}"
-            ) from err
+            raise SouthGlosBinsAPIError(f"Error communicating with API: {err}") from err
 
         collections: dict[str, Any] = {}
         live_status: dict[str, Any] = {}

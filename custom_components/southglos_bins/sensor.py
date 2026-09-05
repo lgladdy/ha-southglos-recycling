@@ -60,9 +60,7 @@ class CollectionDateSensor(SouthGlosBinsEntity, SensorEntity):
             )
         }
 
-        next_collection = self.coordinator.get_collection_date(
-            self._collection_type
-        )
+        next_collection = self.coordinator.get_collection_date(self._collection_type)
         if next_collection:
             days_until = (next_collection - dt_util.now().date()).days
             attrs["days_until_collection"] = days_until
@@ -135,9 +133,7 @@ class LiveStatusSensor(SouthGlosBinsEntity, SensorEntity):
             attrs["last_updated"] = self.coordinator.data.get("last_updated")
 
             completed_time: datetime | None = (
-                self.coordinator.get_collection_completed_time(
-                    self._collection_type
-                )
+                self.coordinator.get_collection_completed_time(self._collection_type)
             )
             if completed_time:
                 attrs["completed_time"] = completed_time
