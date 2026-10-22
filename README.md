@@ -37,16 +37,17 @@ A Home Assistant custom integration for tracking bin collection schedules in Sou
 1. Go to **Settings** → **Devices & Services**
 2. Click **"Add Integration"**
 3. Search for **"South Gloucestershire Recycling Collections"**
-4. Enter your **postcode** (e.g., "BS16 7AE")
+4. Enter your **postcode** (e.g., "BS16 6AA")
 5. If multiple addresses are found, select your specific address
 6. The integration will create sensors for your available collection types
 
 ## Entities Created
 
-All entities for an address are grouped under a single device named after that
-address. Because entity names are prefixed with the device name, your entity IDs
-will look like `sensor.1_test_road_next_refuse_collection` — the examples below
-use the short form for readability.
+All entities for an address are grouped under a single device named after the
+house and street (e.g. "2 Westerleigh Road"). Because entity names are prefixed
+with the device name, your entity IDs will look like
+`sensor.2_westerleigh_road_next_refuse_collection` — the examples below use the
+short form for readability.
 
 For each available collection type, the integration creates sensors and calendar entities:
 
@@ -78,10 +79,10 @@ Two sensors per collection type:
 - `completed_time` - Exact time collection was completed (when applicable)
 
 ### Calendar Entities
-- `calendar.refuse_collection_calendar` - Refuse collection calendar
-- `calendar.recycling_collection_calendar` - Recycling collection calendar
-- `calendar.food_collection_calendar` - Food collection calendar (if available)
-- `calendar.garden_collection_calendar` - Garden collection calendar (if available)
+- `calendar.refuse_collection` - Refuse collection calendar
+- `calendar.recycling_collection` - Recycling collection calendar
+- `calendar.food_collection` - Food collection calendar (if available)
+- `calendar.garden_collection` - Garden collection calendar (if available)
 
 Each calendar displays:
 - **Next collection date** as an upcoming event
@@ -156,6 +157,11 @@ The Calendar view shows all your collection dates in a visual calendar format:
 
 ## Troubleshooting
 
+### "No bin collections listed for this address"
+- The council only lists collections for households; business and commercial
+  properties (shops, units, offices) usually have none
+- Check you picked the right address from the list
+
 ### No Collections Showing
 - Verify your postcode is correct
 - Check that collections are available for your address
@@ -179,7 +185,11 @@ logger:
 ### Incorrect Collection Dates
 - The integration shows data directly from South Gloucestershire Council
 - Collection dates may change due to bank holidays or service disruptions
-- Data updates automatically every 24 hours
+- Data updates automatically every 24 hours, and just after midnight
+
+### Diagnostics
+Download diagnostics from the integration's device page and attach them to bug
+reports. Your UPRN, postcode and address are redacted.
 
 ## Support
 

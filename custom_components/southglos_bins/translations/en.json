@@ -6,6 +6,9 @@
         "description": "Enter your postcode to find your address and set up bin collection tracking.",
         "data": {
           "postcode": "Postcode"
+        },
+        "data_description": {
+          "postcode": "A South Gloucestershire postcode, for example BS16 6AA."
         }
       },
       "select_address": {
@@ -18,7 +21,9 @@
     },
     "error": {
       "cannot_connect": "Failed to connect to the South Gloucestershire collections service. Please try again.",
+      "invalid_postcode": "This doesn't look like a valid UK postcode.",
       "no_addresses_found": "No addresses were found for this postcode. Please check it and try again.",
+      "no_collections": "The council has no bin collections listed for this address. Business and commercial properties usually aren't covered.",
       "unknown": "An unexpected error occurred. Please try again."
     },
     "abort": {
@@ -27,20 +32,44 @@
   },
   "entity": {
     "sensor": {
-      "refuse_date": { "name": "Next refuse collection" },
-      "recycling_date": { "name": "Next recycling collection" },
-      "food_date": { "name": "Next food collection" },
-      "garden_date": { "name": "Next garden collection" },
-      "refuse_status": { "name": "Refuse collection status" },
-      "recycling_status": { "name": "Recycling collection status" },
-      "food_status": { "name": "Food collection status" },
-      "garden_status": { "name": "Garden collection status" }
+      "refuse_date": {
+        "name": "Next refuse collection"
+      },
+      "recycling_date": {
+        "name": "Next recycling collection"
+      },
+      "food_date": {
+        "name": "Next food collection"
+      },
+      "garden_date": {
+        "name": "Next garden collection"
+      },
+      "refuse_status": {
+        "name": "Refuse collection status"
+      },
+      "recycling_status": {
+        "name": "Recycling collection status"
+      },
+      "food_status": {
+        "name": "Food collection status"
+      },
+      "garden_status": {
+        "name": "Garden collection status"
+      }
     },
     "calendar": {
-      "refuse_calendar": { "name": "Refuse collection" },
-      "recycling_calendar": { "name": "Recycling collection" },
-      "food_calendar": { "name": "Food collection" },
-      "garden_calendar": { "name": "Garden collection" }
+      "refuse_calendar": {
+        "name": "Refuse collection"
+      },
+      "recycling_calendar": {
+        "name": "Recycling collection"
+      },
+      "food_calendar": {
+        "name": "Food collection"
+      },
+      "garden_calendar": {
+        "name": "Garden collection"
+      }
     }
   }
 }

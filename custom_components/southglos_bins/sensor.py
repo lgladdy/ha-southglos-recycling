@@ -7,29 +7,37 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import COLLECTION_ICONS, COLLECTION_TYPES
 from .coordinator import SouthGlosBinsConfigEntry, SouthGlosBinsCoordinator
-from .entity import SouthGlosBinsEntity
+from .entity import SouthGlosBinsEntity, async_add_collection_entities
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SouthGlosBinsConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    coordinator = entry.runtime_data
+    async_add_collection_entities(
+        entry,
+        async_add_entities,
+        lambda coordinator, collection_type: (
+            CollectionDateSensor(coordinator, collection_type),
+            LiveStatusSensor(coordinator, collection_type),
+        ),
+    )
 
-    entities: list[SensorEntity] = []
-    for collection_type in COLLECTION_TYPES:
-        if coordinator.is_collection_available(collection_type):
-            entities.append(CollectionDateSensor(coordinator, collection_type))
-            entities.append(LiveStatusSensor(coordinator, collection_type))
 
-    async_add_entities(entities)
+STATUS_ICONS = {
+    "in progress": "mdi:truck",
+    "closed completed": "mdi:check-circle",
+    "completed": "mdi:check-circle",
+    "delayed": "mdi:clock-alert",
+    "cancelled": "mdi:cancel",
+    "not started": "mdi:clock-outline",
+}
 
 
 class CollectionDateSensor(SouthGlosBinsEntity, SensorEntity):
@@ -44,7 +52,6 @@ class CollectionDateSensor(SouthGlosBinsEntity, SensorEntity):
         super().__init__(coordinator, collection_type)
         self._attr_unique_id = f"{coordinator.uprn}_{collection_type}_date"
         self._attr_translation_key = f"{collection_type}_date"
-        self._attr_icon = COLLECTION_ICONS.get(collection_type, "mdi:calendar")
 
     @property
     def native_value(self) -> date | None:
@@ -64,7 +71,10 @@ class CollectionDateSensor(SouthGlosBinsEntity, SensorEntity):
         if next_collection:
             days_until = (next_collection - dt_util.now().date()).days
             attrs["days_until_collection"] = days_until
-            if days_until == 0:
+            if days_until < 0:
+                # Only happens when the council data is stale.
+                attrs["status"] = "Past"
+            elif days_until == 0:
                 attrs["status"] = "Today"
             elif days_until == 1:
                 attrs["status"] = "Tomorrow"
@@ -77,6 +87,9 @@ class CollectionDateSensor(SouthGlosBinsEntity, SensorEntity):
 class LiveStatusSensor(SouthGlosBinsEntity, SensorEntity):
     """Sensor reporting the live collection status for a collection type."""
 
+    # These change on every poll; keep them out of the recorder.
+    _unrecorded_attributes = frozenset({"last_updated", "original_next_collection"})
+
     def __init__(
         self, coordinator: SouthGlosBinsCoordinator, collection_type: str
     ) -> None:
@@ -86,20 +99,16 @@ class LiveStatusSensor(SouthGlosBinsEntity, SensorEntity):
         self._attr_translation_key = f"{collection_type}_status"
 
     @property
-    def icon(self) -> str:
-        """Return an icon reflecting the current status."""
+    def icon(self) -> str | None:
+        """Return an icon reflecting the current status.
+
+        The council's status strings are free text, so they can't be mapped in
+        icons.json; fall back to the translated default icon when unknown.
+        """
         status = self.coordinator.get_live_status(self._collection_type)
         if not status:
-            return "mdi:calendar-clock"
-
-        return {
-            "in progress": "mdi:truck",
-            "closed completed": "mdi:check-circle",
-            "completed": "mdi:check-circle",
-            "delayed": "mdi:clock-alert",
-            "cancelled": "mdi:cancel",
-            "not started": "mdi:clock-outline",
-        }.get(status.lower(), "mdi:help-circle")
+            return None
+        return STATUS_ICONS.get(status.lower())
 
     @property
     def native_value(self) -> str | None:

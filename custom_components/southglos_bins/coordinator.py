@@ -14,7 +14,6 @@ from homeassistant.util import dt as dt_util
 
 from .api import SouthGlosBinsAPI, SouthGlosBinsAPIError
 from .const import (
-    CONF_POSTCODE,
     CONF_UPRN,
     DOMAIN,
     UPDATE_INTERVAL_COLLECTION_DAY,
@@ -42,7 +41,6 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.api = SouthGlosBinsAPI(hass)
         self.uprn: str = entry.data[CONF_UPRN]
-        self.postcode: str = entry.data.get(CONF_POSTCODE, "")
 
         # Collection-day detection is derived from the current date, so force a
         # refresh just after midnight to recalculate state and attributes.

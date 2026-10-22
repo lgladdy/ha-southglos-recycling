@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 
-from .api import SouthGlosBinsAPI, SouthGlosBinsAPIError
+from .api import SouthGlosBinsAPI, SouthGlosBinsAPIError, normalize_postcode
 from .const import CONF_POSTCODE, CONF_UPRN, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,29 +33,37 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            postcode = user_input[CONF_POSTCODE].strip().upper()
-            api = SouthGlosBinsAPI(self.hass)
-            try:
-                addresses = await api.get_addresses_for_postcode(postcode)
-            except SouthGlosBinsAPIError:
-                _LOGGER.exception("Error connecting to the collections service")
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            postcode = normalize_postcode(user_input[CONF_POSTCODE])
+            if postcode is None:
+                errors[CONF_POSTCODE] = "invalid_postcode"
             else:
-                if not addresses:
-                    errors["base"] = "no_addresses_found"
-                elif len(addresses) == 1:
-                    return await self._async_create_entry(addresses[0], postcode)
+                api = SouthGlosBinsAPI(self.hass)
+                try:
+                    addresses = await api.get_addresses_for_postcode(postcode)
+                except SouthGlosBinsAPIError:
+                    _LOGGER.exception("Error connecting to the collections service")
+                    errors["base"] = "cannot_connect"
+                except Exception:
+                    _LOGGER.exception("Unexpected exception")
+                    errors["base"] = "unknown"
                 else:
-                    self._addresses = addresses
                     self._postcode = postcode
-                    return await self.async_step_select_address()
+                    if not addresses:
+                        errors["base"] = "no_addresses_found"
+                    elif len(addresses) == 1:
+                        error = await self._async_validate_address(addresses[0])
+                        if error is None:
+                            return await self._async_create_entry(addresses[0])
+                        errors["base"] = error
+                    else:
+                        self._addresses = addresses
+                        return await self.async_step_select_address()
 
         return self.async_show_form(
             step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA, user_input
+            ),
             errors=errors,
         )
 
@@ -63,33 +71,51 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle address selection when multiple addresses are found."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             selected = next(
                 addr
                 for addr in self._addresses
-                if str(addr["uprn"]) == user_input[CONF_UPRN]
+                if addr["uprn"] == user_input[CONF_UPRN]
             )
-            return await self._async_create_entry(selected, self._postcode)
+            error = await self._async_validate_address(selected)
+            if error is None:
+                return await self._async_create_entry(selected)
+            errors["base"] = error
 
         return self.async_show_form(
             step_id="select_address",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_UPRN): vol.In(
-                        {str(addr["uprn"]): addr["address"] for addr in self._addresses}
+                        {addr["uprn"]: addr["address"] for addr in self._addresses}
                     )
                 }
             ),
+            errors=errors,
         )
 
-    async def _async_create_entry(
-        self, address: dict[str, Any], postcode: str
-    ) -> ConfigFlowResult:
+    async def _async_validate_address(self, address: dict[str, Any]) -> str | None:
+        """Check the address has collections; return an error key if not."""
+        api = SouthGlosBinsAPI(self.hass)
+        try:
+            data = await api.get_collection_data(address["uprn"])
+        except SouthGlosBinsAPIError:
+            _LOGGER.exception("Error connecting to the collections service")
+            return "cannot_connect"
+        except Exception:
+            _LOGGER.exception("Unexpected exception")
+            return "unknown"
+        if not data["collections"]:
+            return "no_collections"
+        return None
+
+    async def _async_create_entry(self, address: dict[str, Any]) -> ConfigFlowResult:
         """Create the config entry for the selected address."""
-        uprn = str(address["uprn"])
-        await self.async_set_unique_id(uprn)
+        await self.async_set_unique_id(address["uprn"])
         self._abort_if_unique_id_configured()
         return self.async_create_entry(
-            title=address["address"],
-            data={CONF_UPRN: uprn, CONF_POSTCODE: postcode},
+            title=address["name"],
+            data={CONF_UPRN: address["uprn"], CONF_POSTCODE: self._postcode},
         )

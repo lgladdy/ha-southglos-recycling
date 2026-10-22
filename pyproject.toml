@@ -4,10 +4,10 @@ version = "1.0.0"
 description = "Home Assistant integration for South Gloucestershire recycling and waste collections"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 line-length = 88
 
 [tool.ruff.lint]

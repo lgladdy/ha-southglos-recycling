@@ -20,14 +20,9 @@ COLLECTIONS_API_URL: Final = (
     "https://api.southglos.gov.uk/wastecomp/GetCollectionDetails"
 )
 
+REQUEST_TIMEOUT: Final = 30  # seconds
+
 UPDATE_INTERVAL_NORMAL: Final = 24 * 60 * 60  # 24 hours in seconds
 UPDATE_INTERVAL_COLLECTION_DAY: Final = 15 * 60  # 15 minutes in seconds
 
 COLLECTION_TYPES: Final = ["refuse", "recycling", "food", "garden"]
-
-COLLECTION_ICONS: Final = {
-    "refuse": "mdi:delete",
-    "recycling": "mdi:recycle",
-    "food": "mdi:food-apple",
-    "garden": "mdi:tree",
-}
