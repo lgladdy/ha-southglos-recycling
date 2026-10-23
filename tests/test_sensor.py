@@ -107,3 +107,21 @@ async def test_unrecorded_attributes(hass: HomeAssistant) -> None:
     assert {"last_updated", "original_next_collection"} <= (
         entity._state_info["unrecorded_attributes"]
     )
+
+
+async def test_long_status_truncated(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Free-text status longer than HA's state limit is truncated, not rejected."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        COLLECTIONS_API_URL,
+        json={"value": [service("Recycling", hso_statename="x" * 400)]},
+    )
+    await setup_integration.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.2_test_road_recycling_collection_status")
+    assert state.state == "x" * 255

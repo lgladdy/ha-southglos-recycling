@@ -12,21 +12,41 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
+from homeassistant.util.json import json_loads
 
-from .const import COLLECTION_TYPES, COLLECTIONS_API_URL, REQUEST_TIMEOUT, UPRN_API_URL
+from .const import (
+    COLLECTION_TYPES,
+    COLLECTIONS_API_URL,
+    MAX_RESPONSE_BYTES,
+    REQUEST_TIMEOUT,
+    UPRN_API_URL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-_POSTCODE_RE = re.compile(r"^([A-Z]{1,2}[0-9][A-Z0-9]?) ?([0-9][A-Z]{2})$")
+_POSTCODE_RE = re.compile(r"([A-Z]{1,2}[0-9][A-Z0-9]?) ?([0-9][A-Z]{2})")
 
 
 class SouthGlosBinsAPIError(Exception):
     """Exception to indicate a general API error."""
 
 
+def _describe_error(err: Exception) -> str:
+    """Describe a request error without the URL.
+
+    aiohttp includes the request URL in its messages, and the URL carries the
+    postcode or UPRN, which identify a home. Keep those out of the logs.
+    """
+    if isinstance(err, aiohttp.ClientResponseError):
+        return f"HTTP {err.status}"
+    if isinstance(err, aiohttp.ClientConnectorError):
+        return f"cannot connect to {err.host}"
+    return type(err).__name__
+
+
 def normalize_postcode(value: str) -> str | None:
     """Return a UK postcode in canonical ``AB1 2CD`` form, or None if invalid."""
-    match = _POSTCODE_RE.match(value.strip().upper())
+    match = _POSTCODE_RE.fullmatch(value.strip().upper())
     if not match:
         return None
     return f"{match.group(1)} {match.group(2)}"
@@ -48,11 +68,18 @@ class SouthGlosBinsAPI:
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
             ) as response:
                 response.raise_for_status()
-                return await response.json()
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+                body = await response.content.read(MAX_RESPONSE_BYTES + 1)
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise SouthGlosBinsAPIError(
-                f"Error communicating with API: {err!r}"
+                f"Error communicating with API: {_describe_error(err)}"
             ) from err
+
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise SouthGlosBinsAPIError("API response too large")
+        try:
+            return json_loads(body)
+        except ValueError as err:
+            raise SouthGlosBinsAPIError("API returned invalid JSON") from err
 
     async def get_addresses_for_postcode(self, postcode: str) -> list[dict[str, Any]]:
         """Return the list of addresses known for a postcode.
@@ -68,7 +95,11 @@ class SouthGlosBinsAPI:
 
         # The council returns upper-case parts; title-case them for display.
         for item in data:
-            if not isinstance(item, dict) or not item.get("Uprn"):
+            if not isinstance(item, dict):
+                continue
+            # UPRNs are numeric; anything else would end up in entity unique IDs.
+            uprn = str(item.get("Uprn") or "")
+            if not uprn.isdecimal():
                 continue
             prop = (item.get("Property") or "").title()
             street = (item.get("Street") or "").title()
@@ -84,9 +115,9 @@ class SouthGlosBinsAPI:
             name = separator.join(part for part in (prop, street) if part)
             addresses.append(
                 {
-                    "uprn": str(item["Uprn"]),
+                    "uprn": uprn,
                     "address": ", ".join(part for part in parts if part),
-                    "name": name or str(item["Uprn"]),
+                    "name": name or uprn,
                 }
             )
 

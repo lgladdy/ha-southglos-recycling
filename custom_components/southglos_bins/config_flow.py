@@ -40,8 +40,9 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
                 api = SouthGlosBinsAPI(self.hass)
                 try:
                     addresses = await api.get_addresses_for_postcode(postcode)
-                except SouthGlosBinsAPIError:
-                    _LOGGER.exception("Error connecting to the collections service")
+                except SouthGlosBinsAPIError as err:
+                    # No traceback: the chained aiohttp error contains the URL.
+                    _LOGGER.warning("Error looking up addresses: %s", err)
                     errors["base"] = "cannot_connect"
                 except Exception:
                     _LOGGER.exception("Unexpected exception")
@@ -101,8 +102,8 @@ class SouthGlosBinsConfigFlow(ConfigFlow, domain=DOMAIN):
         api = SouthGlosBinsAPI(self.hass)
         try:
             data = await api.get_collection_data(address["uprn"])
-        except SouthGlosBinsAPIError:
-            _LOGGER.exception("Error connecting to the collections service")
+        except SouthGlosBinsAPIError as err:
+            _LOGGER.warning("Error checking collections: %s", err)
             return "cannot_connect"
         except Exception:
             _LOGGER.exception("Unexpected exception")

@@ -6,6 +6,7 @@ from datetime import date, datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.const import MAX_LENGTH_STATE_STATE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -113,7 +114,9 @@ class LiveStatusSensor(SouthGlosBinsEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         """Return the live status."""
-        return self.coordinator.get_live_status(self._collection_type)
+        status = self.coordinator.get_live_status(self._collection_type)
+        # HA rejects states over 255 characters; the API's text is free-form.
+        return status[:MAX_LENGTH_STATE_STATE] if status else status
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

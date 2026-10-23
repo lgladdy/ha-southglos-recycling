@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
+import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -60,8 +61,10 @@ async def test_multiple_addresses_shows_select_step(
     assert result["data"]["uprn"] == "2"
 
 
-async def test_cannot_connect(hass: HomeAssistant, mock_api: AsyncMock) -> None:
-    """An API error surfaces the cannot_connect error."""
+async def test_cannot_connect(
+    hass: HomeAssistant, mock_api: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An API error surfaces the cannot_connect error without a traceback."""
     mock_api.get_addresses_for_postcode.side_effect = SouthGlosBinsAPIError
 
     result = await hass.config_entries.flow.async_init(
@@ -72,6 +75,7 @@ async def test_cannot_connect(hass: HomeAssistant, mock_api: AsyncMock) -> None:
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+    assert "Traceback" not in caplog.text
 
 
 async def test_no_addresses(hass: HomeAssistant, mock_api: AsyncMock) -> None:

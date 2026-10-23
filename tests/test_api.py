@@ -31,6 +31,7 @@ from .conftest import UPRN, collections_payload, service
         ("M1 1AE", "M1 1AE"),
         ("not a postcode", None),
         ("BS16 6AA/../x", None),
+        ("BS16 6AA\nX", None),
         ("", None),
     ],
 )
@@ -63,6 +64,7 @@ async def test_addresses_parsed(
                 "Uprn": 607694,
             },
             {"Property": "NO UPRN", "Street": "WESTERLEIGH ROAD", "Uprn": None},
+            {"Property": "BAD UPRN", "Street": "X", "Uprn": "1/../2"},
             "not a dict",
         ],
     )
@@ -191,3 +193,22 @@ async def test_utc_midnight_in_bst_uses_local_date(
     data = await SouthGlosBinsAPI(hass).get_collection_data(UPRN)
 
     assert data["collections"]["refuse"]["next_collection"] == date(2026, 7, 15)
+
+
+async def test_error_message_omits_uprn(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Errors don't leak the UPRN (from the request URL) into logs."""
+    aioclient_mock.get(COLLECTIONS_API_URL, status=503)
+    with pytest.raises(SouthGlosBinsAPIError) as exc_info:
+        await SouthGlosBinsAPI(hass).get_collection_data("607693")
+    assert str(exc_info.value) == "Error communicating with API: HTTP 503"
+
+
+async def test_oversized_response_rejected(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Responses larger than the cap are refused rather than parsed."""
+    aioclient_mock.get(COLLECTIONS_API_URL, text="[" + "1," * 600_000 + "1]")
+    with pytest.raises(SouthGlosBinsAPIError, match="too large"):
+        await SouthGlosBinsAPI(hass).get_collection_data(UPRN)

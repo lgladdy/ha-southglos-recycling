@@ -56,6 +56,17 @@ First release intended for the HACS default repository. Requires Home Assistant
   poll.
 - README calendar entity IDs and example card now match the real entity IDs.
 
+### Security
+
+- API errors no longer write the request URL (which contains the UPRN or
+  postcode) to the Home Assistant log, and config-flow connection errors are
+  logged without a traceback.
+- Postcodes are fully matched against the UK format; UPRNs from the council
+  must be numeric; responses over 1 MB are refused.
+- Live status text is truncated to Home Assistant's 255-character state limit.
+- All GitHub Actions are pinned to commit SHAs and checkouts no longer persist
+  the `GITHUB_TOKEN`.
+
 ### Removed
 
 - `aiohttp` from `manifest.json` requirements (provided by Home Assistant core).

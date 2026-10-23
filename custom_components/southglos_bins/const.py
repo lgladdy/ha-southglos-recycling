@@ -21,6 +21,8 @@ COLLECTIONS_API_URL: Final = (
 )
 
 REQUEST_TIMEOUT: Final = 30  # seconds
+# Real responses are a few KB; refuse anything absurd rather than buffer it.
+MAX_RESPONSE_BYTES: Final = 1024 * 1024
 
 UPDATE_INTERVAL_NORMAL: Final = 24 * 60 * 60  # 24 hours in seconds
 UPDATE_INTERVAL_COLLECTION_DAY: Final = 15 * 60  # 15 minutes in seconds
