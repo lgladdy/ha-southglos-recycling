@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- `example-card.yaml` is now a complete sections-view dashboard using only
+  built-in cards: a next-collection summary header, next-collection and
+  schedule tiles, a month calendar, and a live "Today" section shown only on
+  collection days. The old markdown cards left empty boxes on days with no
+  collection.
+
 ## [1.0.0]
 
 First release intended for the HACS default repository. Requires Home Assistant

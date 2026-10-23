@@ -91,16 +91,31 @@ Each calendar displays:
 
 View your collections in Home Assistant's **Calendar** view for a visual schedule. Click on events to see detailed information including collection round, schedule pattern, and real-time status updates on collection days.
 
-## Dashboard Cards
+## Dashboard
 
-The integration includes an example dashboard configuration in `example-card.yaml`:
+`example-card.yaml` is a complete dashboard built only from Home Assistant's
+built-in cards:
 
-- **Collection Day Banner** - Shows when live tracking is active
-- **Upcoming Collections** - Displays next collection dates with countdown
-- **Live Status Cards** - Real-time collection progress on collection days
-- **Completion Times** - Shows when collections were completed
+- **Header summary** - "Next up: Garden · Tuesday 27 October · in 4 days", or
+  which bins are being collected today
+- **Today** - live status tiles (e.g. "In Progress · Street not yet completed"),
+  shown only on collection days and only for the bins due that day
+- **Next collections** - one tile per bin with the countdown and date
+- **Schedule** - each bin's pattern, e.g. "Wednesday every 3rd week"
+- **Calendar** - a month view of all collections, coloured per bin
 
-Copy the configuration from `example-card.yaml` into your Home Assistant dashboard.
+To use it:
+
+1. Go to **Settings** → **Dashboards** → **Add dashboard** → **New dashboard from scratch**
+2. Open the new dashboard, click the pencil, then **⋮** → **Raw configuration editor**
+3. Paste the contents of `example-card.yaml`
+4. Find and replace `my_address` with your entity prefix, e.g. `2_westerleigh_road`
+   for a device named "2 Westerleigh Road"
+
+Tiles for collection types your address doesn't have hide themselves; remove
+those calendars from the calendar card too. The **Today** section uses
+automation-style visibility conditions, which need Home Assistant 2026.10 or
+newer; on older versions, delete that section.
 
 ## How It Works
 
@@ -125,30 +140,8 @@ The integration connects to South Gloucestershire Council's waste management sys
 - **Food** 🍎 - Food waste (not available at all addresses)
 - **Garden** 🌳 - Garden waste (seasonal/subscription service)
 
-## Example Dashboard Display
+## Calendar
 
-### Normal Day
-```
-Upcoming Collections
-🗑️ Refuse: 2025-08-20 - In 7 days
-♻️ Recycling: 2025-08-20 - In 7 days
-🌳 Garden: 2025-08-19 - In 6 days
-```
-
-### Collection Day
-```
-🚛 Collection Day Active
-Live tracking enabled - Status updates every 15 minutes
-
-Collections today:
-- ♻️ Recycling: Closed Completed (completed 4:25 PM)
-
-♻️ Recycling Collection - TODAY
-Status: Closed Completed
-Next Scheduled: 2025-08-27
-```
-
-### Calendar View
 The Calendar view shows all your collection dates in a visual calendar format:
 - Each collection type appears as a separate calendar
 - Next and previous collection dates are displayed as all-day events
