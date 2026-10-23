@@ -1,121 +1,274 @@
 # Example dashboard for the South Gloucestershire Recycling Collections integration.
 #
-# Entity IDs are prefixed with your device name. Find and replace `my_address`
-# below with your own prefix, e.g. `2_westerleigh_road` for a device named
-# "2 Westerleigh Road" (check Settings -> Devices & services -> Entities).
-type: vertical-stack
-cards:
-  # Collection Day Alert Banner
-  - type: conditional
-    conditions:
-      - condition: or
-        conditions:
-          - entity: sensor.my_address_next_refuse_collection
-            attribute: is_collection_day
-            state: true
-          - entity: sensor.my_address_next_recycling_collection
-            attribute: is_collection_day
-            state: true
-          - entity: sensor.my_address_next_garden_collection
-            attribute: is_collection_day
-            state: true
-    card:
-      type: markdown
-      content: |
-        ## 🚛 Collection Day Active
-        
-        **Live tracking enabled** - Status updates every 15 minutes
-        
-        **Collections today:**
-        {% if states('sensor.my_address_next_refuse_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.my_address_next_refuse_collection', 'is_collection_day') -%}
-        - 🗑️ **Refuse:** {{ states('sensor.my_address_refuse_collection_status') }}
-        {%- if state_attr('sensor.my_address_refuse_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.my_address_refuse_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
-        {% endif -%}
-        {% if states('sensor.my_address_next_recycling_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.my_address_next_recycling_collection', 'is_collection_day') -%}
-        - ♻️ **Recycling:** {{ states('sensor.my_address_recycling_collection_status') }}
-        {%- if state_attr('sensor.my_address_recycling_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.my_address_recycling_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
-        {% endif -%}
-        {% if states('sensor.my_address_next_food_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.my_address_next_food_collection', 'is_collection_day') -%}
-        - 🍎 **Food:** {{ states('sensor.my_address_food_collection_status') }}
-        {%- if state_attr('sensor.my_address_food_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.my_address_food_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
-        {% endif -%}
-        {% if states('sensor.my_address_next_garden_collection') not in ['unavailable', 'unknown'] and state_attr('sensor.my_address_next_garden_collection', 'is_collection_day') -%}
-        - 🌳 **Garden:** {{ states('sensor.my_address_garden_collection_status') }}
-        {%- if state_attr('sensor.my_address_garden_collection_status', 'completed_time') %} (completed {{ state_attr('sensor.my_address_garden_collection_status', 'completed_time').strftime('%-I:%M %p') }}){% endif %}
-        {% endif %}
-
-  # Normal Collection Dates (when NOT collection day)
-  - type: markdown
-    title: "Upcoming Collections"
-    content: |
-      {% for entity_id in ['sensor.my_address_next_refuse_collection', 'sensor.my_address_next_recycling_collection', 'sensor.my_address_next_food_collection', 'sensor.my_address_next_garden_collection'] -%}
-      {% if states(entity_id) not in ['unavailable', 'unknown'] and not state_attr(entity_id, 'is_collection_day') -%}
-      {% set icon = '🗑️' if 'refuse' in entity_id 
-                else '♻️' if 'recycling' in entity_id 
-                else '🍎' if 'food' in entity_id 
-                else '🌳' -%}
-      {% set name = 'Refuse' if 'refuse' in entity_id
-                else 'Recycling' if 'recycling' in entity_id
-                else 'Food' if 'food' in entity_id
-                else 'Garden' -%}
-      
-      **{{ icon }} {{ name }}:** {{ states(entity_id) }}  
-      *{{ state_attr(entity_id, 'status') }}*
-      
-      {% endif -%}
-      {% endfor %}
-
-  # Live Status Summary (replaces individual glance cards)
-  - type: markdown
-    content: |
-      {% if state_attr('sensor.my_address_next_refuse_collection', 'is_collection_day') %}
-      ## 🗑️ Refuse Collection - TODAY
-      **Status:** {{ states('sensor.my_address_refuse_collection_status') }}  
-      **Next Scheduled:** {{ states('sensor.my_address_next_refuse_collection') }}
-      
-      {% endif -%}
-      {% if state_attr('sensor.my_address_next_recycling_collection', 'is_collection_day') %}
-      ## ♻️ Recycling Collection - TODAY
-      **Status:** {{ states('sensor.my_address_recycling_collection_status') }}  
-      **Next Scheduled:** {{ states('sensor.my_address_next_recycling_collection') }}
-      
-      {% endif -%}
-      {% if state_attr('sensor.my_address_next_garden_collection', 'is_collection_day') %}
-      ## 🌳 Garden Collection - TODAY
-      **Status:** {{ states('sensor.my_address_garden_collection_status') }}  
-      **Next Scheduled:** {{ states('sensor.my_address_next_garden_collection') }}
-      
-      {% endif %}
-
-  # Live Collection Details (always show when any collection is active)
-  - type: markdown
-    title: "Live Collection Status"
-    content: |
-      {% for entity_pair in [
-        ['sensor.my_address_next_refuse_collection', 'sensor.my_address_refuse_collection_status', '🗑️ Refuse'],
-        ['sensor.my_address_next_recycling_collection', 'sensor.my_address_recycling_collection_status', '♻️ Recycling'],
-        ['sensor.my_address_next_food_collection', 'sensor.my_address_food_collection_status', '🍎 Food'],
-        ['sensor.my_address_next_garden_collection', 'sensor.my_address_garden_collection_status', '🌳 Garden']
-      ] -%}
-      {% set date_entity, status_entity, display_name = entity_pair -%}
-      {% if states(date_entity) not in ['unavailable', 'unknown'] and state_attr(date_entity, 'is_collection_day') -%}
-      
-      ### {{ display_name }}: {{ states(status_entity) }}
-      {% if state_attr(status_entity, 'completed_time') -%}
-      **Completed:** {{ state_attr(status_entity, 'completed_time').strftime('%-I:%M %p') }}
-      {% endif -%}
-      {% if state_attr(status_entity, 'reason') -%}
-      **Reason:** {{ state_attr(status_entity, 'reason') }}
-      {% endif -%}
-      {% if state_attr(status_entity, 'last_updated') -%}
-      **Last Updated:** {{ state_attr(status_entity, 'last_updated').strftime('%-I:%M %p') }}
-      {% endif -%}
-      {% if state_attr(status_entity, 'schedule') -%}
-      **Schedule:** {{ state_attr(status_entity, 'schedule') }}
-      {% endif -%}
-      {% if state_attr(status_entity, 'round') -%}
-      **Round:** {{ state_attr(status_entity, 'round') }}
-      {% endif -%}
-      
-      {% endif -%}
-      {% endfor %}
+# How to use:
+#   1. Settings -> Dashboards -> Add dashboard -> "New dashboard from scratch".
+#   2. Open it, then the pencil -> three dots -> "Raw configuration editor".
+#   3. Paste this whole file, then find and replace `my_address` with your own
+#      entity prefix, e.g. `2_westerleigh_road` for a device named
+#      "2 Westerleigh Road" (see Settings -> Devices & services -> Entities).
+#
+# Uses only built-in cards. Tiles for collection types your address doesn't
+# have hide themselves; also remove those calendars from the calendar card.
+#
+# The "Today" section uses automation-style visibility conditions, which need
+# Home Assistant 2026.10 or newer. On older versions, delete that section.
+views:
+  - title: Bins
+    path: bins
+    icon: mdi:recycle
+    type: sections
+    max_columns: 3
+    header:
+      layout: start
+      card:
+        type: markdown
+        text_only: true
+        content: |-
+          {%- set p = 'sensor.my_address_next_' -%}
+          {%- set types = ['refuse', 'recycling', 'food', 'garden'] -%}
+          {%- set ns = namespace(today=[], dates=[]) -%}
+          {%- for t in types -%}
+            {%- set e = p ~ t ~ '_collection' -%}
+            {%- if state_attr(e, 'is_collection_day') -%}{%- set ns.today = ns.today + [t | title] -%}{%- endif -%}
+            {%- if has_value(e) -%}{%- set ns.dates = ns.dates + [states(e)] -%}{%- endif -%}
+          {%- endfor -%}
+          {%- if ns.today -%}
+          ## 🚛 Collection day
+          **{{ ns.today | join(' & ') }}** today · live status updates every 15 minutes
+          {%- elif ns.dates -%}
+          {%- set d = ns.dates | min -%}
+          {%- set nsd = namespace(names=[]) -%}
+          {%- for t in types -%}{%- if states(p ~ t ~ '_collection') == d -%}{%- set nsd.names = nsd.names + [t | title] -%}{%- endif -%}{%- endfor -%}
+          {%- set days = (as_datetime(d).date() - now().date()).days -%}
+          ## Next up: {{ nsd.names | join(' & ') }}
+          {{ as_datetime(d).strftime('%A %-d %B') }} · {{ 'today' if days == 0 else 'tomorrow' if days == 1 else 'in ' ~ days ~ ' days' }}
+          {%- else -%}
+          ## Bin collections
+          No collection data yet
+          {%- endif -%}
+    sections:
+      # Only shown on collection days.
+      - type: grid
+        column_span: 3
+        visibility:
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: sensor.my_address_next_refuse_collection
+                attribute: is_collection_day
+                state: true
+              - condition: state
+                entity_id: sensor.my_address_next_recycling_collection
+                attribute: is_collection_day
+                state: true
+              - condition: state
+                entity_id: sensor.my_address_next_food_collection
+                attribute: is_collection_day
+                state: true
+              - condition: state
+                entity_id: sensor.my_address_next_garden_collection
+                attribute: is_collection_day
+                state: true
+        cards:
+          - type: heading
+            heading: Today
+            icon: mdi:truck-fast
+          - type: tile
+            entity: sensor.my_address_refuse_collection_status
+            name: Refuse
+            icon: mdi:delete
+            color: blue-grey
+            state_content:
+              - state
+              - reason
+            grid_options:
+              columns: 6
+            visibility:
+              - condition: state
+                entity_id: sensor.my_address_next_refuse_collection
+                attribute: is_collection_day
+                state: true
+          - type: tile
+            entity: sensor.my_address_recycling_collection_status
+            name: Recycling
+            icon: mdi:recycle
+            color: green
+            state_content:
+              - state
+              - reason
+            grid_options:
+              columns: 6
+            visibility:
+              - condition: state
+                entity_id: sensor.my_address_next_recycling_collection
+                attribute: is_collection_day
+                state: true
+          - type: tile
+            entity: sensor.my_address_food_collection_status
+            name: Food
+            icon: mdi:food-apple
+            color: brown
+            state_content:
+              - state
+              - reason
+            grid_options:
+              columns: 6
+            visibility:
+              - condition: state
+                entity_id: sensor.my_address_next_food_collection
+                attribute: is_collection_day
+                state: true
+          - type: tile
+            entity: sensor.my_address_garden_collection_status
+            name: Garden
+            icon: mdi:tree
+            color: light-green
+            state_content:
+              - state
+              - reason
+            grid_options:
+              columns: 6
+            visibility:
+              - condition: state
+                entity_id: sensor.my_address_next_garden_collection
+                attribute: is_collection_day
+                state: true
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Next collections
+            icon: mdi:calendar-clock
+          - type: tile
+            entity: sensor.my_address_next_refuse_collection
+            name: Refuse
+            color: blue-grey
+            vertical: true
+            state_content:
+              - status
+              - state
+            grid_options:
+              columns: 12
+              rows: 2
+            visibility:
+              - condition: state
+                entity: sensor.my_address_next_refuse_collection
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_next_recycling_collection
+            name: Recycling
+            color: green
+            vertical: true
+            state_content:
+              - status
+              - state
+            grid_options:
+              columns: 12
+              rows: 2
+            visibility:
+              - condition: state
+                entity: sensor.my_address_next_recycling_collection
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_next_food_collection
+            name: Food
+            color: brown
+            vertical: true
+            state_content:
+              - status
+              - state
+            grid_options:
+              columns: 12
+              rows: 2
+            visibility:
+              - condition: state
+                entity: sensor.my_address_next_food_collection
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_next_garden_collection
+            name: Garden
+            color: light-green
+            vertical: true
+            state_content:
+              - status
+              - state
+            grid_options:
+              columns: 12
+              rows: 2
+            visibility:
+              - condition: state
+                entity: sensor.my_address_next_garden_collection
+                state_not: unavailable
+      - type: grid
+        cards:
+          - type: heading
+            heading: Schedule
+            icon: mdi:calendar-sync
+          - type: tile
+            entity: sensor.my_address_refuse_collection_status
+            name: Refuse
+            icon: mdi:delete
+            color: blue-grey
+            state_content:
+              - schedule
+            grid_options:
+              columns: 12
+            visibility:
+              - condition: state
+                entity: sensor.my_address_refuse_collection_status
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_recycling_collection_status
+            name: Recycling
+            icon: mdi:recycle
+            color: green
+            state_content:
+              - schedule
+            grid_options:
+              columns: 12
+            visibility:
+              - condition: state
+                entity: sensor.my_address_recycling_collection_status
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_food_collection_status
+            name: Food
+            icon: mdi:food-apple
+            color: brown
+            state_content:
+              - schedule
+            grid_options:
+              columns: 12
+            visibility:
+              - condition: state
+                entity: sensor.my_address_food_collection_status
+                state_not: unavailable
+          - type: tile
+            entity: sensor.my_address_garden_collection_status
+            name: Garden
+            icon: mdi:tree
+            color: light-green
+            state_content:
+              - schedule
+            grid_options:
+              columns: 12
+            visibility:
+              - condition: state
+                entity: sensor.my_address_garden_collection_status
+                state_not: unavailable
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Calendar
+            icon: mdi:calendar-month
+          - type: calendar
+            initial_view: dayGridMonth
+            entities:
+              - calendar.my_address_refuse_collection
+              - calendar.my_address_recycling_collection
+              - calendar.my_address_food_collection
+              - calendar.my_address_garden_collection
+            grid_options:
+              columns: full
+              rows: 10

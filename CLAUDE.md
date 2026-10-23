@@ -80,14 +80,15 @@ Integration is configured through the Home Assistant UI:
 3. Select address if multiple found
 4. Integration automatically creates sensors for available collection types
 
-## Sample Dashboard Cards
+## Sample Dashboard
 
-See `example-card.yaml` for a complete dashboard configuration that:
-- Automatically handles missing collection types (e.g., addresses without Food collections)
-- Shows a "Collection Day Active" banner when live tracking is enabled
-- Displays upcoming collections with days remaining on normal days
-- Switches to live status tracking with completion times on collection days
-- Uses only default Home Assistant cards (no custom components required)
+See `example-card.yaml` for a complete sections-view dashboard that:
+- Uses only built-in cards (tile, heading, markdown, calendar)
+- Uses a `my_address` entity prefix placeholder for users to find and replace
+- Hides tiles for collection types an address doesn't have
+- Shows a "Today" section with live status only on collection days (needs HA
+  2026.10+ for automation-style visibility conditions)
+- Summarises the next collection in a templated view header
 
 
 ## Error Handling
