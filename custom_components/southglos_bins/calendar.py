@@ -6,27 +6,33 @@ from datetime import date, datetime, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import COLLECTION_ICONS, COLLECTION_TYPES
 from .coordinator import SouthGlosBinsConfigEntry, SouthGlosBinsCoordinator
-from .entity import SouthGlosBinsEntity
+from .entity import SouthGlosBinsEntity, async_add_collection_entities
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SouthGlosBinsConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the calendar platform."""
-    coordinator = entry.runtime_data
-
-    async_add_entities(
-        CollectionCalendar(coordinator, collection_type)
-        for collection_type in COLLECTION_TYPES
-        if coordinator.is_collection_available(collection_type)
+    async_add_collection_entities(
+        entry,
+        async_add_entities,
+        lambda coordinator, collection_type: (
+            CollectionCalendar(coordinator, collection_type),
+        ),
     )
+
+
+def _overlaps(event_date: date, start: datetime, end: datetime) -> bool:
+    """Return whether an all-day event overlaps the half-open [start, end) range."""
+    event_start = dt_util.start_of_local_day(event_date)
+    event_end = dt_util.start_of_local_day(event_date + timedelta(days=1))
+    return event_start < end and event_end > start
 
 
 class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
@@ -39,7 +45,6 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
         super().__init__(coordinator, collection_type)
         self._attr_unique_id = f"{coordinator.uprn}_{collection_type}_calendar"
         self._attr_translation_key = f"{collection_type}_calendar"
-        self._attr_icon = COLLECTION_ICONS.get(collection_type, "mdi:calendar")
 
     @property
     def event(self) -> CalendarEvent | None:
@@ -67,7 +72,7 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
         )
 
         next_collection = self.coordinator.get_collection_date(self._collection_type)
-        if next_collection and start_date.date() <= next_collection <= end_date.date():
+        if next_collection and _overlaps(next_collection, start_date, end_date):
             events.append(
                 self._create_event(next_collection, is_today=next_collection == today)
             )
@@ -76,7 +81,7 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
         if (
             last_collection
             and last_collection != next_collection
-            and start_date.date() <= last_collection <= end_date.date()
+            and _overlaps(last_collection, start_date, end_date)
         ):
             events.append(self._create_event(last_collection, is_today=False))
 
@@ -117,5 +122,4 @@ class CollectionCalendar(SouthGlosBinsEntity, CalendarEntity):
             end=event_date + timedelta(days=1),
             summary=f"{self._collection_type.title()} Collection",
             description="\n".join(description_parts) or None,
-            location=collection_info.get("round") or None,
         )

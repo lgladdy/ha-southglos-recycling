@@ -1,0 +1,20 @@
+{
+  "entity": {
+    "sensor": {
+      "refuse_date": { "default": "mdi:delete" },
+      "recycling_date": { "default": "mdi:recycle" },
+      "food_date": { "default": "mdi:food-apple" },
+      "garden_date": { "default": "mdi:tree" },
+      "refuse_status": { "default": "mdi:calendar-clock" },
+      "recycling_status": { "default": "mdi:calendar-clock" },
+      "food_status": { "default": "mdi:calendar-clock" },
+      "garden_status": { "default": "mdi:calendar-clock" }
+    },
+    "calendar": {
+      "refuse_calendar": { "default": "mdi:delete" },
+      "recycling_calendar": { "default": "mdi:recycle" },
+      "food_calendar": { "default": "mdi:food-apple" },
+      "garden_calendar": { "default": "mdi:tree" }
+    }
+  }
+}

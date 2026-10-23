@@ -68,4 +68,6 @@ known_devices.yaml
 *.tmp
 *.temp
 *.bak
-*.backup.venv/
+*.backup
+.venv/
+.ruff_cache/

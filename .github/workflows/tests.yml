@@ -11,12 +11,24 @@ permissions:
 
 jobs:
   pytest:
-    name: pytest
+    name: pytest (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: latest
+            install: -r requirements_test.txt
+          # Oldest harness release for the hacs.json minimum (2026.3.0); no
+          # harness build pins 2026.3.0 itself, so this tests 2026.3.1.
+          - name: minimum
+            install: pytest-homeassistant-custom-component==0.13.317
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: "3.13"
-      - run: pip install -r requirements_test.txt
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+      - run: pip install ${{ matrix.install }}
       - run: pytest

@@ -9,7 +9,7 @@ body:
     id: ha_version
     attributes:
       label: Home Assistant version
-      placeholder: "2025.1.0"
+      placeholder: "2026.3.0"
     validations:
       required: true
   - type: input
@@ -38,5 +38,6 @@ body:
       label: Relevant log output
       description: >-
         Enable debug logging for `custom_components.southglos_bins` and paste any
-        related entries. Remove your postcode / UPRN if you prefer.
+        related entries. Please remove your postcode, UPRN and address, or attach
+        the integration's diagnostics download instead (these are redacted).
       render: text
