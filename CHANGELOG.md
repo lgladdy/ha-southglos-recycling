@@ -6,6 +6,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Update failures no longer log "Error communicating with API" twice in the
+  same message.
+
 ### Changed
 
 - `example-card.yaml` is now a complete sections-view dashboard using only

@@ -55,7 +55,8 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = await self.api.get_collection_data(self.uprn)
         except SouthGlosBinsAPIError as err:
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+            # The API error already says what failed; don't prefix it again.
+            raise UpdateFailed(str(err)) from err
 
         self._adjust_update_interval(data)
         return data
