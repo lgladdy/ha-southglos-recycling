@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+)
 
-from custom_components.southglos_bins.const import DOMAIN
+from custom_components.southglos_bins.const import COLLECTIONS_API_URL, DOMAIN
+
+from .conftest import collections_payload
 
 
 async def test_setup_and_unload(hass: HomeAssistant, mock_api: AsyncMock) -> None:
@@ -28,3 +38,55 @@ async def test_setup_and_unload(hass: HomeAssistant, mock_api: AsyncMock) -> Non
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_update_failure_message_not_doubled(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A failed refresh reports the API error once, without a repeated prefix."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(COLLECTIONS_API_URL, exc=TimeoutError())
+
+    coordinator = setup_integration.runtime_data
+    await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    assert (
+        str(coordinator.last_exception) == "Error communicating with API: TimeoutError"
+    )
+
+
+async def test_failed_refresh_retries_sooner(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A failed refresh retries in 15 minutes, then returns to the normal schedule."""
+    coordinator = setup_integration.runtime_data
+    # Move to a day with no collection so the normal interval is 24 hours.
+    freezer.move_to("2026-10-22T10:00:00+01:00")
+    # Let the midnight refresh that the jump crossed run now, not mid-test.
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    await coordinator.async_refresh()
+    assert coordinator.update_interval == timedelta(hours=24)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(COLLECTIONS_API_URL, exc=TimeoutError())
+    await coordinator.async_refresh()
+    assert not coordinator.last_update_success
+    assert coordinator.update_interval == timedelta(minutes=15)
+
+    # The API recovers; the scheduled retry 15 minutes later picks it up.
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(COLLECTIONS_API_URL, json=collections_payload())
+    freezer.tick(timedelta(minutes=15, seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert coordinator.last_update_success
+    assert aioclient_mock.call_count == 1
+    assert coordinator.update_interval == timedelta(hours=24)

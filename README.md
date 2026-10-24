@@ -123,7 +123,7 @@ The integration connects to South Gloucestershire Council's waste management sys
 
 1. **Address Lookup** - Uses your postcode to find your UPRN (Unique Property Reference Number)
 2. **Collection Data** - Retrieves your specific collection schedule and live status
-3. **Smart Updates** - Updates daily normally, every 15 minutes on collection days
+3. **Smart Updates** - Updates daily normally, every 15 minutes on collection days, and retries every 15 minutes if the council's service is unavailable
 4. **Collection Day Detection** - Recognizes when collections are scheduled or happening today
 5. **Live Tracking** - Shows real-time progress: "In Progress", "Closed Completed", etc.
 6. **Calendar Integration** - Displays collection dates in Home Assistant's calendar view with full event details
@@ -179,6 +179,9 @@ logger:
 - The integration shows data directly from South Gloucestershire Council
 - Collection dates may change due to bank holidays or service disruptions
 - Data updates automatically every 24 hours, and just after midnight
+- If the council's service is down, the integration keeps retrying (every 15
+  minutes once running; Home Assistant backs off up to 10 minutes during
+  startup) and recovers on its own once it's back
 
 ### Diagnostics
 Download diagnostics from the integration's device page and attach them to bug

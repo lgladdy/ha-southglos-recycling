@@ -26,5 +26,8 @@ MAX_RESPONSE_BYTES: Final = 1024 * 1024
 
 UPDATE_INTERVAL_NORMAL: Final = 24 * 60 * 60  # 24 hours in seconds
 UPDATE_INTERVAL_COLLECTION_DAY: Final = 15 * 60  # 15 minutes in seconds
+# After a failed refresh, retry this soon instead of waiting for the next
+# scheduled update (which can be up to 24 hours away).
+UPDATE_INTERVAL_RETRY: Final = 15 * 60  # 15 minutes in seconds
 
 COLLECTION_TYPES: Final = ["refuse", "recycling", "food", "garden"]

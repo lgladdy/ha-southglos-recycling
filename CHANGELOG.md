@@ -6,6 +6,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Fixed
+
+- After a failed refresh, the integration now retries in 15 minutes instead of
+  waiting for the next scheduled update. Previously a short council API outage
+  on a normal day could leave entities unavailable until the midnight refresh.
+- Update failures no longer log "Error communicating with API" twice in the
+  same message.
+
 ### Changed
 
 - `example-card.yaml` is now a complete sections-view dashboard using only
