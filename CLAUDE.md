@@ -33,6 +33,7 @@ Root: `hacs.json`, `.github/workflows/` (hassfest, HACS, ruff, pytest),
 - **Smart update scheduling**: 
   - Daily updates normally (24 hours)
   - 15-minute updates on collection days for live status
+  - 15-minute retries after a failed refresh, until one succeeds
 - **Collection types**: Refuse, Recycling, Food, Garden (when available)
 - **Intelligent date handling**: Recognizes collection days when either scheduled for today OR when collection happened/is happening today with live status
 - **Completion time tracking**: Captures and displays the exact time when collections were completed
@@ -96,4 +97,4 @@ See `example-card.yaml` for a complete sections-view dashboard that:
 - API connection errors are handled gracefully
 - Invalid postcodes show appropriate error messages
 - Missing or unavailable collection types are filtered out
-- Update failures are logged and retried on next scheduled update
+- Update failures are logged and retried after 15 minutes, then the normal schedule resumes

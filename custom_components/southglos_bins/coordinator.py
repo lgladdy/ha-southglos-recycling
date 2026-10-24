@@ -18,6 +18,7 @@ from .const import (
     DOMAIN,
     UPDATE_INTERVAL_COLLECTION_DAY,
     UPDATE_INTERVAL_NORMAL,
+    UPDATE_INTERVAL_RETRY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = await self.api.get_collection_data(self.uprn)
         except SouthGlosBinsAPIError as err:
+            self._set_update_interval(timedelta(seconds=UPDATE_INTERVAL_RETRY))
             # The API error already says what failed; don't prefix it again.
             raise UpdateFailed(str(err)) from err
 
@@ -74,11 +76,17 @@ class SouthGlosBinsCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             info.get("next_collection") == today
             for info in data.get("collections", {}).values()
         )
-        new_interval = timedelta(
-            seconds=UPDATE_INTERVAL_COLLECTION_DAY
-            if is_collection_day
-            else UPDATE_INTERVAL_NORMAL
+        self._set_update_interval(
+            timedelta(
+                seconds=UPDATE_INTERVAL_COLLECTION_DAY
+                if is_collection_day
+                else UPDATE_INTERVAL_NORMAL
+            )
         )
+
+    @callback
+    def _set_update_interval(self, new_interval: timedelta) -> None:
+        """Change the polling interval, logging when it changes."""
         if self.update_interval != new_interval:
             _LOGGER.debug("Adjusting update interval to %s", new_interval)
             self.update_interval = new_interval

@@ -1,6 +1,6 @@
 [project]
 name = "ha-southglos-recycling"
-version = "1.0.0"
+version = "1.0.1"
 description = "Home Assistant integration for South Gloucestershire recycling and waste collections"
 readme = "README.md"
 license = { text = "MIT" }
