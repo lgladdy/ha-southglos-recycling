@@ -6,6 +6,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- README installation now leads with installing from the HACS default catalog,
+  with an "Open in HACS" button; adding a custom repository is kept as a
+  fallback.
+
 ## [1.0.1]
 
 ### Fixed
